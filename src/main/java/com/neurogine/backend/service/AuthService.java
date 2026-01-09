@@ -3,53 +3,68 @@ package com.neurogine.backend.service;
 import com.neurogine.backend.dto.*;
 import com.neurogine.backend.entity.*;
 import com.neurogine.backend.repository.*;
+import com.neurogine.backend.security.JwtService;
+
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
 @Service
 public class AuthService {
+
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final LoginCodeRepository loginCodeRepository; // Tambahan repository
+    private final LoginCodeRepository loginCodeRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final OtpService otpService;
+    private final JwtService jwtService;
 
-    public AuthService(UserRepository userRepository, 
-                       RoleRepository roleRepository, 
-                       LoginCodeRepository loginCodeRepository,
-                       BCryptPasswordEncoder passwordEncoder) {
+    public AuthService(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            LoginCodeRepository loginCodeRepository,
+            BCryptPasswordEncoder passwordEncoder,
+            OtpService otpService,
+            JwtService jwtService
+    ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.loginCodeRepository = loginCodeRepository;
         this.passwordEncoder = passwordEncoder;
+        this.otpService = otpService;
+        this.jwtService = jwtService;
     }
 
+    /* ===================== REGISTER ===================== */
+
     public AuthUserDTO register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) throw new RuntimeException("Email sudah ada");
-        
-        Role employeeRole = roleRepository.findByName("Employee").orElseThrow();
-        
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email sudah ada");
+        }
+
+        Role employeeRole = roleRepository.findByName("Employee")
+                .orElseThrow(() -> new RuntimeException("Role Employee tidak ditemukan"));
+
         User user = new User();
         user.setName(request.getName());
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(employeeRole);
-        
-        User savedUser = userRepository.save(user);
-        return mapToDTO(savedUser);
+
+        return mapToDTO(userRepository.save(user));
     }
 
-    /**
-     * Langkah 1: Validasi Password & Generate OTP
-     */
+    /* ===================== LOGIN STEP 1 (PASSWORD + OTP) ===================== */
+
     @Transactional
     public Map<String, Object> login(Map<String, String> payload) {
+
         User user = userRepository.findByEmail(payload.get("email"))
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
 
@@ -57,61 +72,60 @@ public class AuthService {
             throw new RuntimeException("Password salah");
         }
 
-        // 1. Generate 6 digit OTP yang aman
         String otpCode = generateSixDigitCode();
 
-        // 2. Hapus OTP lama jika ada dan simpan yang baru
+        // 1 user = 1 OTP aktif
         loginCodeRepository.deleteByEmail(user.getEmail());
-        
+
         LoginCode loginCode = new LoginCode();
         loginCode.setEmail(user.getEmail());
-        loginCode.setCode(otpCode);
-        loginCode.setExpiresAt(LocalDateTime.now().plusMinutes(5)); // Valid 5 menit
+        loginCode.setCode(otpCode); // NOTE: idealnya di-hash
+        loginCode.setExpiresAt(LocalDateTime.now().plusMinutes(5));
         loginCodeRepository.save(loginCode);
 
-        // 3. Log ke console (Ganti ini dengan kirim email asli jika sudah ada MailService)
-        System.out.println("DEBUG: OTP untuk " + user.getEmail() + " adalah " + otpCode);
+        otpService.sendOtpEmail(user.getEmail(), otpCode);
 
-        // 4. Kirim sinyal ke Frontend untuk membuka modal
         Map<String, Object> response = new HashMap<>();
         response.put("status", "OTP_REQUIRED");
         response.put("email", user.getEmail());
-        response.put("message", "Kode OTP telah dikirim ke email (Cek console)");
+        response.put("message", "Kode OTP telah dikirim ke email Anda");
+
         return response;
     }
 
-    /**
-     * Langkah 2: Verifikasi OTP & Kembalikan Token
-     */
+    /* ===================== LOGIN STEP 2 (OTP + JWT) ===================== */
+
     @Transactional
     public LoginResponseData verifyOtp(String email, String code) {
-        // 1. Cari kode di database
+
         LoginCode loginCode = loginCodeRepository.findByEmailAndCode(email, code)
                 .orElseThrow(() -> new RuntimeException("Kode OTP salah atau tidak ditemukan"));
 
-        // 2. Cek apakah kode sudah expired
         if (loginCode.getExpiresAt().isBefore(LocalDateTime.now())) {
             loginCodeRepository.delete(loginCode);
-            throw new RuntimeException("Kode OTP sudah kadaluarsa, silakan login ulang");
+            throw new RuntimeException("Kode OTP sudah kadaluarsa");
         }
 
-        // 3. Ambil data user
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
 
-        // 4. Hapus OTP dari database (sekali pakai)
+        // OTP hanya sekali pakai
         loginCodeRepository.delete(loginCode);
 
-        // 5. Kembalikan Token Beneran (Ganti dummy-jwt dengan JWT Generator kamu)
-        String actualJwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.real-token-for-" + user.getId();
-        
-        return new LoginResponseData(actualJwtToken, "Bearer", mapToDTO(user));
+        String jwtToken = jwtService.generateToken(
+                user.getId(),
+                user.getEmail(),
+                user.getRole().getName()
+        );
+
+        return new LoginResponseData(jwtToken, "Bearer", mapToDTO(user));
     }
+
+    /* ===================== UTIL ===================== */
 
     private String generateSixDigitCode() {
         SecureRandom random = new SecureRandom();
-        int num = 100000 + random.nextInt(900000);
-        return String.valueOf(num);
+        return String.valueOf(100000 + random.nextInt(900000));
     }
 
     private AuthUserDTO mapToDTO(User user) {
