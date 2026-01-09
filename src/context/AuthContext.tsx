@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import Cookies from "js-cookie";
 import {
   loginHandler,
@@ -15,9 +21,19 @@ import type {
   VerifyOtpResponse,
 } from "@/types/auth";
 
+interface AuthUser {
+  id: number;
+  name: string;
+  username?: string;
+  email: string;
+  role_id?: number;
+  role_name: string;
+}
+
 interface AuthContextType {
   isAuthenticated: boolean;
   loading: boolean;
+  user: AuthUser | null;
   login: (payload: LoginPayload) => Promise<LoginResponse>;
   verifyOtp: (payload: VerifyOtpPayload) => Promise<VerifyOtpResponse>;
   register: (payload: RegisterPayload) => Promise<any>;
@@ -26,45 +42,78 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
-  // Check auth status on load
+  // --- Check auth status on app load ---
   useEffect(() => {
-    const token = Cookies.get("access_token");
-    setIsAuthenticated(!!token);
+    const token = Cookies.get("token");
+    const userData = Cookies.get("user");
+
+    if (token && userData) {
+      try {
+        const parsedUser: AuthUser = JSON.parse(decodeURIComponent(userData));
+        if (parsedUser?.id && parsedUser?.role_name) {
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      } catch (err) {
+        console.error("Failed to parse user cookie", err);
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    }
     setLoading(false);
   }, []);
 
-  /* --- Step 1: Login --- */
+  // --- Login (OTP request) ---
   const login = async (payload: LoginPayload) => {
     return await loginHandler(payload);
-    // Kita tidak set Authenticated di sini karena butuh OTP
   };
 
-  /* --- Step 2: Verify OTP --- */
+  // --- Verify OTP ---
   const verifyOtp = async (payload: VerifyOtpPayload) => {
     const response = await verifyOtpHandler(payload);
 
-    if (response.status === "success" && response.data?.token) {
-      // Simpan ke Cookies
-      Cookies.set("access_token", response.data.token, {
-        expires: 7, // 7 hari
+    if (response.status === "success" && response.data?.access_token) {
+      const { access_token, user } = response.data;
+
+      // Simpan token
+      Cookies.set("token", access_token, {
+        expires: 7,
         secure: true,
         sameSite: "strict",
       });
+
+      // Simpan user lengkap
+      Cookies.set("user", JSON.stringify(user), {
+        expires: 7,
+        secure: true,
+        sameSite: "strict",
+      });
+
+      setUser(user);
       setIsAuthenticated(true);
     }
+
     return response;
   };
 
+  // --- Register ---
   const register = async (payload: RegisterPayload) => {
     return await registerHandler(payload);
   };
 
+  // --- Logout ---
   const logout = () => {
-    Cookies.remove("access_token");
+    Cookies.remove("token");
+    Cookies.remove("user");
+    setUser(null);
     setIsAuthenticated(false);
     window.location.href = "/login";
   };
@@ -74,6 +123,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         isAuthenticated,
         loading,
+        user,
         login,
         verifyOtp,
         register,
@@ -85,6 +135,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// --- Hook untuk pakai context ---
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used inside AuthProvider");

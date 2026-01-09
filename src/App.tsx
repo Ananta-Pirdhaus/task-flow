@@ -2,17 +2,18 @@ import { useRoutes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-import routes from "./routes";
+import routes from "./routes"; // ini sudah array
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 
 function AppContent() {
-  const { isAuthenticated, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return null; // atau <LoadingSpinner />
   }
 
-  const routing = useRoutes(routes(isAuthenticated));
+  // Tidak perlu panggil routes() karena sudah array
+  const routing = useRoutes(routes);
 
   return (
     <>

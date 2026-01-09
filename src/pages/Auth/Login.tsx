@@ -16,6 +16,7 @@ import {
   Clock,
   Layout,
 } from "lucide-react";
+import { OtpModal } from "./OtpModal";
 
 // --- MODERN INPUT COMPONENT ---
 interface ModernInputProps {
@@ -81,10 +82,12 @@ const ModernInput: React.FC<ModernInputProps> = ({
 // --- MAIN LOGIN COMPONENT ---
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, verifyOtp } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -97,23 +100,61 @@ const Login: React.FC = () => {
     try {
       const response = await login(formData);
 
-      if (response.status === "success") {
-        toast.success("Welcome back! Redirecting...");
-        navigate("/dashboard");
+      // Cek apakah butuh OTP
+      if (
+        response.status === "success" &&
+        response.data?.status === "OTP_REQUIRED"
+      ) {
+        toast.info(response.message);
+        setShowOtpModal(true); // Tampilkan modal
       } else {
-        toast.error(response.message || "Invalid email or password");
+        toast.error("Terjadi kesalahan sistem");
       }
     } catch (error: any) {
-      toast.error(
-        error.response?.data?.message || "An error occurred during login"
-      );
+      toast.error(error.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
+ const handleVerifyOtp = async (otpCode: string) => {
+   setOtpLoading(true);
+   try {
+     const response = await verifyOtp({
+       email: formData.email,
+       code: otpCode,
+     });
+
+     if (response.status === "success") {
+       toast.success("Login Successful!");
+       setShowOtpModal(false);
+
+       // --- Redirect Dinamis Berdasarkan Role ---
+       if (response.data?.user?.role_name === "Admin") {
+         navigate("/admin/analytics", { replace: true });
+       } else if (response.data?.user?.role_name === "Project Lead") {
+         navigate("/project-leader/dashboard", { replace: true });
+       } else {
+         navigate("/", { replace: true }); // Employee / default
+       }
+     }
+   } catch (error: any) {
+     toast.error(error.response?.data?.message || "Invalid OTP Code");
+   } finally {
+     setOtpLoading(false);
+   }
+ };
+
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 relative overflow-hidden ">
+      <OtpModal
+        isOpen={showOtpModal}
+        email={formData.email}
+        onClose={() => setShowOtpModal(false)}
+        onVerify={handleVerifyOtp}
+        loading={otpLoading}
+      />
       {/* Background Ornaments */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-200/30 rounded-full blur-[120px]" />

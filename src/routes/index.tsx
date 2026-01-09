@@ -5,162 +5,66 @@ import Main from "../pages/Main";
 import Project from "../pages/Project";
 import Login from "../pages/Auth/Login";
 import Register from "../pages/Auth/Register";
-import PrivateRoute from "../helpers/privateRoutes";
+import PrivateRoute from "@/helpers/privateRoutes";
 import NotificationBoard from "../pages/Notifications";
-import Newsletter from "../pages/Admin/Newsletter"; // Example admin-only pages
+import Newsletter from "../pages/Admin/Newsletter";
 import Workflow from "../pages/Admin/WorkFlow";
 import Analytics from "../pages/Admin/Analytics";
 import ProjectLeaderDashboard from "../pages/ProjectLeader/ProjectLeaderDashboard";
 import TaskDetails from "../pages/ProjectLeader/TaskDetails";
 import UserTaskPage from "../pages/ProjectLeader/UserTask";
 
-const routes = (isAuthenticated: boolean): RouteObject[] => [
-  // Protected routes
+const routes: RouteObject[] = [
+  // Layout utama untuk semua user ("/" dianggap halaman setup)
   {
     path: "/",
-    element: (
-      <PrivateRoute element={<Layout />} isAuthenticated={isAuthenticated} />
-    ),
+    element: <PrivateRoute element={<Layout />} requireLogin={true} />,
     children: [
-      {
-        path: "",
-        element: (
-          <PrivateRoute element={<Main />} isAuthenticated={isAuthenticated} />
-        ),
-      },
-      {
-        path: "/boards",
-        element: (
-          <PrivateRoute
-            element={<Boards />}
-            isAuthenticated={isAuthenticated}
-          />
-        ),
-      },
-      {
-        path: "/project",
-        element: (
-          <PrivateRoute
-            element={<Project />}
-            isAuthenticated={isAuthenticated}
-          />
-        ),
-      },
-      {
-        path: "/notifications",
-        element: (
-          <PrivateRoute
-            element={<NotificationBoard />}
-            isAuthenticated={isAuthenticated}
-          />
-        ),
-      },
+      { path: "", element: <Main /> },
+      { path: "boards", element: <Boards /> },
+      { path: "project", element: <Project /> },
+      { path: "notifications", element: <NotificationBoard /> },
     ],
   },
 
-  // Project-Leader-only protected routes
+  // Project Lead routes
   {
     path: "/project-leader",
-    element: (
-      <PrivateRoute
-        element={<Layout />}
-        isAuthenticated={isAuthenticated}
-        isRole="Project Leader"
-      />
-    ),
+    element: <PrivateRoute element={<Layout />} isRole="Project Lead" />,
     children: [
-      {
-        path: "dashboard",
-        element: (
-          <PrivateRoute
-            element={<ProjectLeaderDashboard />}
-            isAuthenticated={isAuthenticated}
-            isRole="Project Leader"
-          />
-        ),
-      },
-      {
-        path: "task-detail",
-        element: (
-          <PrivateRoute
-            element={<TaskDetails />}
-            isAuthenticated={isAuthenticated}
-            isRole="Project Leader"
-          />
-        ),
-      },
-      {
-        path: "user-task",
-        element: (
-          <PrivateRoute
-            element={<UserTaskPage />}
-            isAuthenticated={isAuthenticated}
-            isRole="Project Leader"
-          />
-        ),
-      },
+      { path: "dashboard", element: <ProjectLeaderDashboard /> },
+      { path: "task-detail", element: <TaskDetails /> },
+      { path: "user-task", element: <UserTaskPage /> },
     ],
   },
 
-  // Admin-only protected routes
+  // Admin routes
   {
     path: "/admin",
-    element: (
-      <PrivateRoute
-        element={<Layout />}
-        isAuthenticated={isAuthenticated}
-        isRole="Administrator"
-      />
-    ),
+    element: <PrivateRoute element={<Layout />} isRole="Admin" />,
     children: [
-      {
-        path: "newsletter",
-        element: (
-          <PrivateRoute
-            element={<Newsletter />}
-            isAuthenticated={isAuthenticated}
-            isRole="Administrator"
-          />
-        ),
-      },
-      {
-        path: "workflow",
-        element: (
-          <PrivateRoute
-            element={<Workflow />}
-            isAuthenticated={isAuthenticated}
-            isRole="Administrator"
-          />
-        ),
-      },
-      {
-        path: "analytics",
-        element: (
-          <PrivateRoute
-            element={<Analytics />}
-            isAuthenticated={isAuthenticated}
-            isRole="Administrator"
-          />
-        ),
-      },
+      { path: "newsletter", element: <Newsletter /> },
+      { path: "workflow", element: <Workflow /> },
+      { path: "analytics", element: <Analytics /> },
     ],
   },
 
-  // Public routes
+  // Redirect alias
   {
-    path: "/login",
-    element: <Login />,
+    path: "/dashboard",
+    element: <Navigate to="/project-leader/dashboard" replace />,
   },
-  {
-    path: "/register",
-    element: <Register />,
-  },
+  { path: "/analytics", element: <Navigate to="/admin/analytics" replace /> },
 
-  // Redirect for main route
-  {
-    path: "/main",
-    element: <Navigate to="/" />,
-  },
+  // Public routes
+  { path: "/login", element: <Login /> },
+  { path: "/register", element: <Register /> },
+
+  // Redirect /main ke /
+  { path: "/main", element: <Navigate to="/" replace /> },
+
+  // Fallback
+  { path: "*", element: <Navigate to="/" replace /> },
 ];
 
 export default routes;

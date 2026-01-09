@@ -1,32 +1,48 @@
 import { Navigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 
 interface PrivateRouteProps {
   element: JSX.Element;
-  isAuthenticated: boolean;
-  isRole?: string; // role_name or role_id that is required
+  isRole?: string; // Bisa role_name atau role_id
+  requireLogin?: boolean; // Jika true, wajib login
 }
 
 const PrivateRoute = ({
   element,
-  isAuthenticated,
   isRole,
+  requireLogin = true,
 }: PrivateRouteProps) => {
-  const userData = localStorage.getItem("user");
-  const user = userData ? JSON.parse(userData) : null;
+  const { isAuthenticated, user, loading } = useAuth();
 
-  // Set isAuthenticated to true if user data exists in localStorage
-  isAuthenticated = user !== null;
+  if (loading) return null; // tunggu state auth siap
 
-  // Check if role exists and matches the required role (either role_name or role_id)
-  const hasRequiredRole = isRole
-    ? user?.role_name === isRole || user?.role_id === parseInt(isRole)
-    : true;
+  const publicPaths = ["/login", "/register"];
 
-  return isAuthenticated && hasRequiredRole ? (
-    element
-  ) : (
-    <Navigate to="/login" />
-  );
+  // Auto redirect untuk halaman public jika sudah login
+  if (isAuthenticated && publicPaths.includes(window.location.pathname)) {
+    if (user?.role_name === "Admin")
+      return <Navigate to="/admin/analytics" replace />;
+    if (user?.role_name === "Project Lead")
+      return <Navigate to="/project-leader/dashboard" replace />;
+    return <Navigate to="/" replace />; // Employee / default
+  }
+
+  // Jika halaman ini require login tapi user belum login
+  if (requireLogin && !isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // cek role jika di-set
+  const hasRequiredRole = (() => {
+    if (!isRole) return true; // tidak ada role, semua boleh
+    if (!user) return false;
+
+    const roleId =
+      typeof user.role_id === "number" ? user.role_id : Number(user.role_id);
+    return user.role_name === isRole || roleId === Number(isRole);
+  })();
+
+  return hasRequiredRole ? element : <Navigate to="/login" replace />;
 };
 
 export default PrivateRoute;

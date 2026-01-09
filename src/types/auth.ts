@@ -1,3 +1,6 @@
+/* ======================================================
+    GENERIC API RESPONSE
+====================================================== */
 export type ApiStatus = "success" | "error";
 
 export interface ApiResponse<T = unknown> {
@@ -30,31 +33,33 @@ export interface RegisterPayload {
 }
 
 /* ======================================================
-    AUTH RESPONSE DATA
-====================================================== */
-export interface LoginResponseData {
-  token: string; // Sesuai dengan field di backend verify-otp
-  token_type?: string;
-  user: AuthUser;
-}
-
-// Tahap 1 login biasanya mengembalikan email atau status
-export interface LoginStep1Data {
-  email: string;
-  status: string; // e.g., "OTP_REQUIRED"
-}
-
-/* ======================================================
-    USER & OTHERS
+    USER & AUTH DATA
 ====================================================== */
 export interface AuthUser {
   id: number;
   name: string;
   username?: string;
   email: string;
+  role_id?: number; // tambahkan role_id sesuai response backend
   role_name: string;
 }
 
-export type LoginResponse = ApiResponse<LoginStep1Data>;
-export type VerifyOtpResponse = ApiResponse<LoginResponseData>;
+// Data step 1 login (misal login awal sebelum OTP)
+export interface LoginStep1Data {
+  email: string;
+  status: string; // e.g., "OTP_REQUIRED"
+}
+
+// Data login/OTP berhasil
+export interface LoginResponseData {
+  access_token: string; // Sesuai backend
+  token_type?: string;
+  user: AuthUser;
+}
+
+/* ======================================================
+    RESPONSE TYPES
+====================================================== */
+export type LoginResponse = ApiResponse<LoginStep1Data>; // Step 1 login
+export type VerifyOtpResponse = ApiResponse<LoginResponseData>; // Step 2 OTP
 export type RegisterResponse = ApiResponse<AuthUser>;

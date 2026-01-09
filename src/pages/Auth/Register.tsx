@@ -61,7 +61,7 @@ const Register: React.FC = () => {
       const response = await register(payload);
 
       if (response.status === "success") {
-        toast.success("Account created successfully! Welcome aboard.");
+        toast.success("Account created successfully! Welcome.");
         navigate("/login");
       } else {
         toast.error(response.message);
