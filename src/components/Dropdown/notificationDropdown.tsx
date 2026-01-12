@@ -1,6 +1,6 @@
 import { MenuItems, MenuItem } from "@headlessui/react";
 import React from "react";
-import { TaskT, Columns } from "../../types"; // Adjust the import according to your file structure
+import { TaskT, Columns } from "../../types/task"; // Adjust the import according to your file structure
 
 const fetchHighPriorityTasks = (): Columns | null => {
   const data = localStorage.getItem("taskBoard");

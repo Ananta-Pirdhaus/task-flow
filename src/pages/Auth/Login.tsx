@@ -1,7 +1,5 @@
-"use client";
-
 import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -18,7 +16,7 @@ import {
 } from "lucide-react";
 import { OtpModal } from "./OtpModal";
 
-// --- MODERN INPUT COMPONENT ---
+// --- SUB-COMPONENT: MODERN INPUT ---
 interface ModernInputProps {
   label: string;
   value: string;
@@ -81,73 +79,78 @@ const ModernInput: React.FC<ModernInputProps> = ({
 
 // --- MAIN LOGIN COMPONENT ---
 const Login: React.FC = () => {
-  const navigate = useNavigate();
   const { login, verifyOtp } = useAuth();
+  const navigate = useNavigate();
+  // State UI
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [formData, setFormData] = useState({ email: "", password: "" });
-  const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [formData, setFormData] = useState({ email: "", password: "" });
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  // Login Tahap 1: Request OTP
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await login(formData);
+      const res = await login(formData);
 
-      // Cek apakah butuh OTP
-      if (
-        response.status === "success" &&
-        response.data?.status === "OTP_REQUIRED"
-      ) {
-        toast.info(response.message);
-        setShowOtpModal(true); // Tampilkan modal
-      } else {
-        toast.error("Terjadi kesalahan sistem");
+      if ((res.status as string) === "OTP_REQUIRED") {
+        toast.info(res.message || "Kode OTP telah dikirim ke email Anda!");
+        setShowOtpModal(true);
+      } else if (res.status === "success") {
+        toast.success("Login Berhasil!");
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Login failed");
+      toast.error(
+        error.response?.data?.message || "Login gagal, silakan cek kembali"
+      );
     } finally {
       setLoading(false);
     }
   };
 
- const handleVerifyOtp = async (otpCode: string) => {
-   setOtpLoading(true);
-   try {
-     const response = await verifyOtp({
-       email: formData.email,
-       code: otpCode,
-     });
+  // Login Tahap 2: Verify OTP
+  const handleVerifyOtp = async (otpCode: string) => {
+    setOtpLoading(true);
+    try {
+      const res = await verifyOtp({
+        email: formData.email,
+        code: otpCode,
+      });
 
-     if (response.status === "success") {
-       toast.success("Login Successful!");
-       setShowOtpModal(false);
+      if (res.status === "success") {
+        toast.success("Verifikasi Berhasil! Mengalihkan...");
 
-       // --- Redirect Dinamis Berdasarkan Role ---
-       if (response.data?.user?.role_name === "Admin") {
-         navigate("/admin/analytics", { replace: true });
-       } else if (response.data?.user?.role_name === "Project Lead") {
-         navigate("/project-leader/dashboard", { replace: true });
-       } else {
-         navigate("/", { replace: true }); // Employee / default
-       }
-     }
-   } catch (error: any) {
-     toast.error(error.response?.data?.message || "Invalid OTP Code");
-   } finally {
-     setOtpLoading(false);
-   }
- };
+        // Ambil role dari response atau context
+        const role = res.data.user.role_name;
 
+        // Beri jeda sedikit agar toast terbaca (opsional)
+        setTimeout(() => {
+          if (role === "Admin") {
+            navigate("/admin/analytics");
+          } else if (role === "Project Lead") {
+            navigate("/project-leader/dashboard");
+          } else {
+            navigate("/");
+          }
+        }, 1000);
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Kode OTP tidak valid");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 relative overflow-hidden ">
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Modal OTP */}
       <OtpModal
         isOpen={showOtpModal}
         email={formData.email}
@@ -155,14 +158,15 @@ const Login: React.FC = () => {
         onVerify={handleVerifyOtp}
         loading={otpLoading}
       />
-      {/* Background Ornaments */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+
+      {/* Dekorasi Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-200/30 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-200/30 rounded-full blur-[120px]" />
       </div>
 
       <div className="max-w-5xl w-full bg-white rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] flex overflow-hidden border border-white/20 relative z-10">
-        {/* LEFT SIDE: FORM */}
+        {/* SISI KIRI: FORM LOGIN */}
         <div className="w-full lg:w-1/2 p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
           <div className="max-w-sm mx-auto w-full">
             <div className="flex items-center gap-3 mb-10">
@@ -176,19 +180,19 @@ const Login: React.FC = () => {
 
             <div className="mb-8 text-left">
               <h1 className="text-3xl font-extrabold text-gray-900 mb-2">
-                Welcome Back
+                Selamat Datang
               </h1>
               <p className="text-gray-500 text-sm font-medium">
-                Please enter your details to sign in.
+                Masukkan detail akun Anda untuk masuk.
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
               <ModernInput
                 icon={<Mail size={18} />}
-                label="Email Address"
+                label="Alamat Email"
                 type="email"
-                placeholder="name@company.com"
+                placeholder="nama@perusahaan.com"
                 value={formData.email}
                 onChange={(val) => handleChange("email", val)}
               />
@@ -196,7 +200,7 @@ const Login: React.FC = () => {
               <div className="space-y-1">
                 <ModernInput
                   icon={<Lock size={18} />}
-                  label="Password"
+                  label="Kata Sandi"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={formData.password}
@@ -214,9 +218,9 @@ const Login: React.FC = () => {
                 <div className="flex justify-end">
                   <Link
                     to="/forgot-password"
-                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700"
                   >
-                    Forgot Password?
+                    Lupa Kata Sandi?
                   </Link>
                 </div>
               </div>
@@ -230,7 +234,7 @@ const Login: React.FC = () => {
                   <Loader2 className="animate-spin" size={20} />
                 ) : (
                   <>
-                    Sign In
+                    Masuk Sekarang
                     <ArrowRight
                       size={18}
                       className="group-hover:translate-x-1 transition-transform"
@@ -242,25 +246,24 @@ const Login: React.FC = () => {
 
             <div className="mt-10 text-center">
               <p className="text-sm text-gray-500">
-                Don't have an account?{" "}
+                Belum punya akun?{" "}
                 <Link
                   to="/register"
                   className="font-bold text-gray-900 hover:text-orange-600 transition-colors border-b-2 border-orange-100 hover:border-orange-500"
                 >
-                  Create account
+                  Buat akun baru
                 </Link>
               </p>
             </div>
           </div>
         </div>
 
-        {/* RIGHT SIDE: HERO VISUAL */}
+        {/* SISI KANAN: VISUAL HERO */}
         <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-50 to-orange-50 border-l border-gray-100 relative items-center justify-center p-12 overflow-hidden">
-          {/* Decorative Circles */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-orange-200/50 rounded-full opacity-50" />
 
           <div className="relative z-10 w-full max-w-sm">
-            {/* Floating Task Card 1 */}
+            {/* Card Task 1 */}
             <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 mb-4 transform -rotate-2 hover:rotate-0 transition-transform duration-500">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
@@ -271,13 +274,13 @@ const Login: React.FC = () => {
                     Landing Page Design
                   </p>
                   <p className="text-[10px] text-gray-400 font-medium uppercase">
-                    Completed
+                    Selesai
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Main Feature Card */}
+            {/* Testimonial Card */}
             <div className="bg-white/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-2xl border border-white mb-4 relative overflow-hidden">
               <div className="absolute top-0 right-0 p-6 opacity-10">
                 <Layout size={80} />
@@ -301,7 +304,7 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            {/* Floating Task Card 2 */}
+            {/* Card Task 2 */}
             <div className="bg-white p-4 rounded-2xl shadow-xl border border-gray-100 ml-12 transform rotate-2 hover:rotate-0 transition-transform duration-500">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
@@ -312,7 +315,7 @@ const Login: React.FC = () => {
                     Weekly Sprint
                   </p>
                   <p className="text-[10px] text-gray-400 font-medium uppercase">
-                    In Progress
+                    Dalam Proses
                   </p>
                 </div>
               </div>

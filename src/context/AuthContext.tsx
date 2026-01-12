@@ -7,6 +7,7 @@ import {
   useState,
   ReactNode,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
 import {
   loginHandler,
@@ -19,16 +20,8 @@ import type {
   VerifyOtpPayload,
   LoginResponse,
   VerifyOtpResponse,
+  AuthUser,
 } from "@/types/auth";
-
-interface AuthUser {
-  id: number;
-  name: string;
-  username?: string;
-  email: string;
-  role_id?: number;
-  role_name: string;
-}
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -47,7 +40,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
 
-  // --- Check auth status on app load ---
+  const navigate = useNavigate();
+
+  // --- 1. Jalankan pengecekan token saat aplikasi pertama kali dimuat ---
   useEffect(() => {
     const token = Cookies.get("token");
     const userData = Cookies.get("user");
@@ -58,64 +53,79 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (parsedUser?.id && parsedUser?.role_name) {
           setUser(parsedUser);
           setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
         }
       } catch (err) {
-        console.error("Failed to parse user cookie", err);
-        setUser(null);
-        setIsAuthenticated(false);
+        console.error("Gagal memproses data user dari cookie", err);
+        logout(); // Bersihkan jika data korup
       }
     }
     setLoading(false);
   }, []);
 
-  // --- Login (OTP request) ---
+  // --- 2. Helper Fungsi Redirect berdasarkan Role ---
+  const redirectUser = (role: string) => {
+    if (role === "Admin") {
+      navigate("/admin/analytics");
+    } else if (role === "Project Lead") {
+      navigate("/project-leader/dashboard");
+    } else {
+      navigate("/"); // User biasa atau default
+    }
+  };
+
+  // --- 3. Fungsi Login (Tahap 1: Request OTP) ---
   const login = async (payload: LoginPayload) => {
     return await loginHandler(payload);
   };
 
-  // --- Verify OTP ---
-  const verifyOtp = async (payload: VerifyOtpPayload) => {
-    const response = await verifyOtpHandler(payload);
+  // --- 4. Fungsi Verify OTP (Tahap 2: Verifikasi & Simpan Session) ---
+  const verifyOtp = async (
+    payload: VerifyOtpPayload
+  ): Promise<VerifyOtpResponse> => {
+    const resData = await verifyOtpHandler(payload);
 
-    if (response.status === "success" && response.data?.access_token) {
-      const { access_token, user } = response.data;
+    if (resData && resData.access_token) {
+      const { access_token, user: userData } = resData;
 
-      // Simpan token
-      Cookies.set("token", access_token, {
+      const cookieConfig = {
         expires: 7,
         secure: true,
-        sameSite: "strict",
-      });
+        sameSite: "strict" as const,
+      };
 
-      // Simpan user lengkap
-      Cookies.set("user", JSON.stringify(user), {
-        expires: 7,
-        secure: true,
-        sameSite: "strict",
-      });
+      // --- SET ITEM KE COOKIES ---
+      Cookies.set("token", access_token, cookieConfig);
+      Cookies.set("user_id", String(userData.id), cookieConfig); // Tambahkan ini
+      Cookies.set("name", userData.name, cookieConfig);
+      Cookies.set("role_name", userData.role_name, cookieConfig);
+      Cookies.set("user", JSON.stringify(userData), cookieConfig);
 
-      setUser(user);
+      // Update state global
+      setUser(userData);
       setIsAuthenticated(true);
+
+      return {
+        status: "success",
+        message: "Verifikasi Berhasil",
+        data: resData,
+      };
     }
 
-    return response;
+    throw new Error("Gagal verifikasi OTP");
   };
 
-  // --- Register ---
+  // --- 5. Fungsi Register ---
   const register = async (payload: RegisterPayload) => {
     return await registerHandler(payload);
   };
 
-  // --- Logout ---
+  // --- 6. Fungsi Logout ---
   const logout = () => {
     Cookies.remove("token");
     Cookies.remove("user");
     setUser(null);
     setIsAuthenticated(false);
-    window.location.href = "/login";
+    navigate("/login");
   };
 
   return (
@@ -135,9 +145,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// --- Hook untuk pakai context ---
+// Hook kustom untuk memudahkan pemanggilan context
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used inside AuthProvider");
+  if (!context)
+    throw new Error("useAuth harus digunakan di dalam AuthProvider");
   return context;
 };

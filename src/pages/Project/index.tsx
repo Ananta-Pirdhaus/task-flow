@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { TaskT, TagT } from "../../types"; // Ensure TaskT and TagT types are correctly defined
-import AddModal from "../../components/Modals/AddModal";
+import { TaskT, TagT } from "../../types/task"; // Ensure TaskT and TagT types are correctly defined
+import AddModal from "../../components/Modals/TaskModal";
 import EditModal from "../../components/Modals/EditModal";
 import { toast } from "react-toastify"; // Import toast for notifications
 import ToastProvider from "../../helpers/onNotifications";

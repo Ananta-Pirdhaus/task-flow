@@ -37,7 +37,7 @@ const Main: React.FC = () => {
   }, []);
 
   if (!boardData) {
-    return <div>Loading...</div>; // Menampilkan loading jika data belum ada
+    return <div>loading...</div>; // Menampilkan loading jika data belum ada
   }
 
   // Hitung total tugas di setiap kolom

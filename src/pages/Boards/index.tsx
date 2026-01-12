@@ -1,204 +1,186 @@
+"use client";
+
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { useState, useEffect } from "react";
-import { Columns, TaskData } from "../../types";
-import { onDragEnd } from "../../helpers/onDragEnd";
-import { AddOutline } from "react-ionicons";
-import AddModal from "../../components/Modals/AddModal";
-import EditModal from "../../components/Modals/EditModal";
-import ViewModal from "../../components/Modals/ViewModal";
+import { useTasks } from "../../context/TaskContext";
+import TaskModal from "../../components/Modals/TaskModal";
 import Task from "../../components/Task";
-import { toast } from "react-toastify";
-import ToastProvider from "../../helpers/onNotifications";
 import GenerateModal from "../../components/Modals/GenerateModal";
-import { axiosInstance } from "../../lib/axios";
+import { PlusCircleIcon } from "lucide-react";
 
-const fetchTasks = async (): Promise<Columns> => {
-  try {
-    const response = await axiosInstance.get("/tasks"); // API call to fetch tasks
-    const data = response.data.data;
-
-    // Structure columns based on your response format
-    const columns: Columns = data.reduce((acc: any, task: any) => {
-      const taskColumn = task.task_type.type || "General"; // Example: use task type to create column names
-      if (!acc[taskColumn]) {
-        acc[taskColumn] = { name: taskColumn, items: [] };
-      }
-      acc[taskColumn].items.push(task); // Add task to respective column
-      return acc;
-    }, {});
-
-    // Add toast notification for successful fetch
-    toast.success("Tasks loaded successfully!");
-
-    return columns;
-  } catch (error) {
-    console.error("Error fetching tasks:", error);
-    toast.error("Failed to load tasks.");
-    return {};
-  }
-};
+/* Skeleton Component */
+const ColumnSkeleton = () => (
+  <div className="w-[260px] flex flex-col gap-3">
+    <div className="h-10 bg-slate-200 rounded animate-pulse" />
+    {[1, 2, 3].map((i) => (
+      <div key={i} className="h-24 bg-slate-200 rounded animate-pulse" />
+    ))}
+  </div>
+);
 
 const Home = () => {
-  const [columns, setColumns] = useState<Columns>({});
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedColumn, setSelectedColumn] = useState<string>("");
-  const [selectedTask, setSelectedTask] = useState<TaskData | null>(null);
-  const [deletingTaskId, setDeletingTaskId] = useState<any>(null);
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const {
+    columns,
+    loading,
+    onDragEnd,
 
-  // Fetch tasks on component mount
-  useEffect(() => {
-    const loadTasks = async () => {
-      const fetchedColumns = await fetchTasks();
-      setColumns(fetchedColumns);
-    };
+    modalOpen,
+    setModalOpen,
+    setSelectedColumn,
+    selectedTask,
+    setSelectedTask,
 
-    loadTasks();
-  }, []);
+    deleteTask,
+  } = useTasks();
 
-  const openModal = (columnId: string) => {
-    setSelectedColumn(columnId);
-    setModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setModalOpen(false);
-  };
-
-  const openViewTaskModal = (task: TaskData) => {
-    setSelectedTask(task);
-    setViewModalOpen(true);
-    setEditModalOpen(false);
-  };
-
-  const openEditModal = (task: TaskData) => {
-    setSelectedTask(task);
-    setEditModalOpen(true);
-    setViewModalOpen(false);
-  };
-
-  const closeEditModal = () => {
-    setEditModalOpen(false);
-    setSelectedTask(null);
-  };
-
-  const handleAddTask = (taskData: TaskData) => {
-    const newBoard = { ...columns };
-    newBoard[selectedColumn].items.push(taskData);
-    setColumns(newBoard);
-    toast.success("Task added successfully!");
-  };
-
-  const handleEditTask = (updatedTask: TaskData) => {
-    const newColumns = { ...columns };
-    const columnId = Object.keys(newColumns).find((id) =>
-      newColumns[id].items.some((task) => task.id === updatedTask.id)
+  if (loading) {
+    return (
+      <div className="flex gap-6 px-6">
+        <ColumnSkeleton />
+        <ColumnSkeleton />
+        <ColumnSkeleton />
+      </div>
     );
-    if (!columnId) return;
+  }
 
-    const taskIndex = newColumns[columnId].items.findIndex(
-      (task) => task.id === updatedTask.id
-    );
-    if (taskIndex === -1) return;
-
-    newColumns[columnId].items[taskIndex] = updatedTask;
-    setColumns(newColumns);
-    toast.info("Task updated successfully!");
-  };
-
-  const handleDeleteTask = (taskId: any) => {
-    const newColumns = { ...columns };
-    const columnId = Object.keys(newColumns).find((id) =>
-      newColumns[id].items.some((task) => task.id === taskId)
-    );
-    if (!columnId) return;
-
-    newColumns[columnId].items = newColumns[columnId].items.filter(
-      (task) => task.id !== taskId
-    );
-
-    setColumns(newColumns);
-    toast.error("Task deleted successfully!");
+  const columnStyles: Record<string, any> = {
+    backlog: {
+      border: "border-t-red-400",
+      dot: "bg-red-400",
+      bg: "bg-red-500/10",
+    },
+    inprogress: {
+      border: "border-t-yellow-400",
+      dot: "bg-yellow-400 animate-pulse",
+      bg: "bg-yellow-500/10",
+    },
+    done: {
+      border: "border-t-emerald-400",
+      dot: "bg-emerald-400",
+      bg: "bg-emerald-500/10",
+    },
   };
 
   return (
     <>
-      <ToastProvider options={{ position: "top-right", autoClose: 3000 }} />
-      <DragDropContext
-        onDragEnd={(result: any) => onDragEnd(result, columns, setColumns)}
-      >
-        <div className="w-full flex items-start justify-between px-5 pb-8 md:gap-2 gap-10">
-          {Object.entries(columns).map(([columnId, column]: [string, any]) => (
-            <div className="w-full flex flex-col gap-0" key={columnId}>
-              <Droppable droppableId={columnId}>
-                {(provided: any) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="flex flex-col md:w-[290px] w-[250px] gap-3 items-center py-5"
-                  >
-                    <div className="flex items-center justify-center py-[10px] w-full bg-white rounded-lg shadow-sm text-[#555] font-medium text-[15px]">
-                      {column.name}
-                    </div>
-                    {column.items.map((task: any, index: any) => (
-                      <Draggable
-                        key={task.id.toString()}
-                        draggableId={task.id.toString()}
-                        index={index}
-                      >
-                        {(provided: any) => (
-                          <Task
-                            provided={provided}
-                            task={task}
-                            onView={() => openViewTaskModal(task)}
-                            onEdit={() => openEditModal(task)}
-                            onDelete={() => handleDeleteTask(task.id)}
-                          />
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+      <div className="flex flex-col items-center justify-center min-h-[85vh] w-full p-6">
+        <DragDropContext
+          onDragEnd={(result) => {
+            // Hanya update state jika drop berhasil
+            if (!result.destination) return;
+            onDragEnd(result);
+          }}
+        >
+          <div className="flex gap-8 px-4 py-8 overflow-x-auto max-w-full items-start justify-center no-scrollbar">
+            {Object.entries(columns).map(([columnId, column]) => {
+              const styles = columnStyles[columnId] || {};
 
-                    {/* Add Task button inside the column */}
+              return (
+                <Droppable droppableId={columnId} key={columnId}>
+                  {(provided, snapshot) => (
                     <div
-                      onClick={() => openModal(columnId)}
-                      className="flex cursor-pointer items-center justify-center gap-1 py-[10px] w-full opacity-90 bg-white rounded-lg shadow-sm text-[#555] font-medium text-[15px] mt-2"
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`w-[320px] flex flex-col gap-4 p-5 rounded-3xl border-t-4 transition-all duration-300
+                        ${styles.border}
+                        ${
+                          snapshot.isDraggingOver
+                            ? "bg-white/30 scale-[1.02] shadow-2xl"
+                            : "bg-white/10 shadow-xl"
+                        }
+                        backdrop-blur-xl border-x border-b border-white/20`}
                     >
-                      <AddOutline color={"#555"} />
-                      Add Task
-                    </div>
-                  </div>
-                )}
-              </Droppable>
-            </div>
-          ))}
-        </div>
-      </DragDropContext>
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-2 px-1">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-2.5 h-2.5 rounded-full ${styles.dot}`}
+                          />
+                          <h3 className="font-bold text-white text-sm tracking-widest uppercase">
+                            {column.name}
+                          </h3>
+                        </div>
+                        <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-white/20 text-white">
+                          {column.items.length}
+                        </span>
+                      </div>
 
-      <AddModal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        setOpen={setModalOpen}
-        handleAddTask={handleAddTask}
-      />
-      {selectedTask && (
-        <>
-          <EditModal
-            isOpen={editModalOpen}
-            onClose={closeEditModal}
-            setOpen={setEditModalOpen}
-            handleEditTask={handleEditTask}
-            currentTaskData={selectedTask}
-          />
-          <ViewModal
-            isOpen={viewModalOpen}
-            onClose={() => setViewModalOpen(false)}
-            task={selectedTask}
-          />
-        </>
-      )}
+                      {/* Tasks */}
+                      <div className="flex flex-col gap-4 min-h-[200px]">
+                        {column.items.length === 0 ? (
+                          <div
+                            className={`flex items-center justify-center py-12 rounded-2xl border-2 border-dashed border-white/10 ${styles.bg}`}
+                          >
+                            <p className="text-white/40 text-[10px] uppercase tracking-widest">
+                              Empty Space
+                            </p>
+                          </div>
+                        ) : (
+                          column.items
+                            .filter((task) => task?.id != null) // Filter task null/undefined
+                            .map((task, index) => (
+                              <Draggable
+                                key={task.id}
+                                draggableId={task.id.toString()}
+                                index={index}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`transition-transform ${
+                                      snapshot.isDragging
+                                        ? "rotate-2 scale-105"
+                                        : "hover:-translate-y-1"
+                                    }`}
+                                  >
+                                    <Task
+                                      task={task}
+                                      provided={provided}
+                                      onView={() => {
+                                        setSelectedTask(task);
+                                        setModalOpen(true);
+                                      }}
+                                      onEdit={() => {
+                                        setSelectedTask(task);
+                                        setModalOpen(true);
+                                      }}
+                                      onDelete={() => deleteTask(task.id)}
+                                    />
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))
+                        )}
+                        {provided.placeholder}
+                      </div>
+
+                      {/* Add Task */}
+                      <button
+                        onClick={() => {
+                          setSelectedColumn(columnId as keyof typeof columns);
+                          setSelectedTask(null);
+                          setModalOpen(true);
+                        }}
+                        className="mt-2 py-3 rounded-xl bg-white/10 text-white flex items-center justify-center gap-2"
+                      >
+                        <PlusCircleIcon className="w-4 h-4" />
+                        Add Task
+                      </button>
+                    </div>
+                  )}
+                </Droppable>
+              );
+            })}
+          </div>
+        </DragDropContext>
+      </div>
+
+      {/* SINGLE MODAL */}
+      {modalOpen && <TaskModal isOpen={modalOpen} setOpen={setModalOpen} onClose={function (): void {
+        throw new Error("Function not implemented.");
+      } } />}
+
       <GenerateModal />
     </>
   );

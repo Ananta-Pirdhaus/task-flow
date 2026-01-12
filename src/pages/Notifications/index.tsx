@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
-import { Columns, TaskT } from "../../types";
+import { Columns, TaskT } from "../../types/task";
 
 const getInitialColumns = (): Columns => {
   const storedData = localStorage.getItem("taskBoard");

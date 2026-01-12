@@ -2,67 +2,74 @@ import axios, {
   AxiosError,
   AxiosInstance,
   InternalAxiosRequestConfig,
+  AxiosResponse,
 } from "axios";
 
-// Ambil Base URL dari env (Pastikan di .env namanya VITE_LOCAL_BACKEND_ACP)
-const BASE_URL_ACP =
-  import.meta.env.VITE_LOCAL_BACKEND_ACP || "http://127.0.0.1:8080/api";
-
 /* ======================
-   INSTANCE CONFIG
+    UTILITY FUNCTIONS
 ====================== */
 
-// Instance 1: Untuk API umum/internal (proxy Vite)
-const http: AxiosInstance = axios.create({
-  baseURL: "/api",
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-// Instance 2: Untuk Backend ACP Spesifik
-const axiosInstance: AxiosInstance = axios.create({
-  baseURL: BASE_URL_ACP,
-  timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-/* ======================
-   HELPER INTERCEPTOR
-====================== */
-// Kita buat fungsi reusable agar tidak menulis kode interceptor dua kali
-const addInterceptors = (instance: AxiosInstance) => {
-  // REQUEST: Pasang token secara dinamis setiap kali ada request
-  instance.interceptors.request.use(
-    (config: InternalAxiosRequestConfig) => {
-      const token = localStorage.getItem("access_token"); // samakan key-nya, tadi ada 'token' dan 'access_token'
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    (error: AxiosError) => Promise.reject(error)
-  );
-
-  // RESPONSE: Handle error global (seperti 401)
-  instance.interceptors.response.use(
-    (response) => response.data,
-    (error: AxiosError) => {
-      if (error.response?.status === 401) {
-        localStorage.removeItem("access_token");
-        window.location.href = "/login";
-      }
-      return Promise.reject(error);
-    }
-  );
+const deleteCookie = (name: string) => {
+  // Path=/ sangat penting agar cookie benar-benar terhapus di semua halaman
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 };
 
-// Pasang interceptor ke kedua instance
-addInterceptors(http);
-addInterceptors(axiosInstance);
+const clearAuthSession = () => {
+  const targetCookies = ["token", "name", "role_name", "user"];
+  targetCookies.forEach((name) => deleteCookie(name));
 
-export { axiosInstance };
-export default http;
+  // Bersihkan juga localStorage jika kamu menyimpan data di sana
+  localStorage.clear();
+};
+
+const getCookieToken = (name: string = "token"): string | null => {
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[2]) : null;
+};
+
+/* ======================
+    AXIOS INSTANCE
+====================== */
+
+export const axiosInstance: AxiosInstance = axios.create({
+  baseURL: "/api",
+  timeout: 10000,
+  headers: { "Content-Type": "application/json" },
+  withCredentials: true,
+});
+
+/* ======================
+    INTERCEPTORS
+====================== */
+
+axiosInstance.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = getCookieToken("token");
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error: AxiosError) => Promise.reject(error)
+);
+
+axiosInstance.interceptors.response.use(
+  (response: AxiosResponse) => response.data,
+  (error: AxiosError) => {
+    const status = error.response?.status;
+    const isLoginPage = window.location.pathname === "/login";
+
+    // HANYA redirect jika kena 401/403 DAN user sedang TIDAK di halaman login
+    if ((status === 401 || status === 403) && !isLoginPage) {
+      clearAuthSession();
+      window.location.replace("/login");
+      return Promise.reject(error);
+    }
+
+    // Jika error terjadi SAAT di halaman login, jangan redirect (biarkan tampil error message)
+    const data = error.response?.data as any;
+    const errorMessage =
+      data?.message || error.message || "Something went wrong";
+    return Promise.reject(new Error(errorMessage));
+  }
+);

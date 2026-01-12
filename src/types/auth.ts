@@ -6,7 +6,7 @@ export type ApiStatus = "success" | "error";
 export interface ApiResponse<T = unknown> {
   status: ApiStatus;
   message: string;
-  data?: T;
+  data: T; // Hilangkan '?' di sini jika backend selalu mengirimkan object data saat success
 }
 
 /* ======================================================
@@ -17,7 +17,6 @@ export interface LoginPayload {
   password: string;
 }
 
-// Payload baru untuk verifikasi OTP
 export interface VerifyOtpPayload {
   email: string;
   code: string;
@@ -40,19 +39,21 @@ export interface AuthUser {
   name: string;
   username?: string;
   email: string;
-  role_id?: number; // tambahkan role_id sesuai response backend
+  role_id?: number;
   role_name: string;
 }
 
-// Data step 1 login (misal login awal sebelum OTP)
+/** * Gunakan string literal "OTP_REQUIRED" agar TypeScript
+ * bisa memberikan autocomplete saat kamu mengetik 'if (status === ...)'
+ */
 export interface LoginStep1Data {
   email: string;
-  status: string; // e.g., "OTP_REQUIRED"
+  status: "OTP_REQUIRED" | string;
+  message: string;
 }
 
-// Data login/OTP berhasil
 export interface LoginResponseData {
-  access_token: string; // Sesuai backend
+  access_token: string;
   token_type?: string;
   user: AuthUser;
 }
@@ -60,6 +61,6 @@ export interface LoginResponseData {
 /* ======================================================
     RESPONSE TYPES
 ====================================================== */
-export type LoginResponse = ApiResponse<LoginStep1Data>; // Step 1 login
-export type VerifyOtpResponse = ApiResponse<LoginResponseData>; // Step 2 OTP
+export type LoginResponse = ApiResponse<LoginStep1Data>;
+export type VerifyOtpResponse = ApiResponse<LoginResponseData>;
 export type RegisterResponse = ApiResponse<AuthUser>;

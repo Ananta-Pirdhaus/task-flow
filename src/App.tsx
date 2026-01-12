@@ -4,6 +4,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 import routes from "./routes"; // ini sudah array
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { TaskProvider } from "./context/TaskContext";
 
 function AppContent() {
   const { loading } = useAuth();
@@ -26,7 +27,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <TaskProvider>
+        <AppContent />
+      </TaskProvider>
     </AuthProvider>
   );
 }

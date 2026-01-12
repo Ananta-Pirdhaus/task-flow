@@ -1,71 +1,102 @@
-import React, { useEffect, useState } from "react";
-import { Columns } from "../../types";
+"use client";
 
+import React, { useEffect, useState } from "react";
+import Cookies from "js-cookie";
+import { Columns } from "../../types/task";
+
+/* =========================
+   Skeleton Components
+========================= */
+const SkeletonBlock = ({ className }: { className?: string }) => (
+  <div className={`animate-pulse bg-gray-200 rounded-md ${className}`} />
+);
+
+const SkeletonModal = () => (
+  <div className="space-y-4">
+    <SkeletonBlock className="h-6 w-1/3" />
+    <SkeletonBlock className="h-4 w-1/4" />
+    <SkeletonBlock className="h-16 w-full" />
+    <SkeletonBlock className="h-16 w-full" />
+  </div>
+);
+
+/* =========================
+   Main Component
+========================= */
 const GenerateModal = () => {
-  const [columns, setColumns] = useState<Columns | null>(null);
+  const [columns, setColumns] = useState<Columns>({});
+  const [loading, setLoading] = useState(true);
+
   const [showToDoModal, setShowToDoModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
+  /* =========================
+     Load from Cookies
+  ========================= */
   useEffect(() => {
-    const storedData = localStorage.getItem("taskBoard");
-    if (storedData) {
-      const parsedData: Columns = JSON.parse(storedData);
-      setColumns(parsedData);
+    try {
+      const cookieData = Cookies.get("taskBoard");
+
+      if (cookieData) {
+        const parsed: Columns = JSON.parse(cookieData);
+        setColumns(parsed ?? {});
+      } else {
+        setColumns({});
+      }
+    } catch (err) {
+      console.error("Failed to read taskBoard cookie:", err);
+      setColumns({});
+    } finally {
+      setLoading(false);
     }
   }, []);
 
+  const isEmpty = Object.keys(columns).length === 0;
+
+  /* =========================
+     Helpers
+  ========================= */
   const formatDate = () => {
     const today = new Date();
-    const day = String(today.getDate()).padStart(2, "0");
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const year = today.getFullYear();
-    return `${day}-${month}-${year}`;
+    return today.toLocaleDateString("id-ID");
   };
 
-  const generateToDoContent = (columns: Columns): string => {
-    const date = formatDate();
-    const content = Object.entries(columns)
-      .map(([columnKey, column]) => {
-        return (
+  const generateToDoContent = (data: Columns) => {
+    if (Object.keys(data).length === 0) return "No tasks available";
+
+    const content = Object.values(data)
+      .map(
+        (column) =>
           `${column.name}\n` +
           column.items
-            .map((task) => {
-              return `- ${task.title}\n  Description: ${task.description}\n  Priority: ${task.priority}\n`;
-            })
+            .map(
+              (task) =>
+                `- ${task.title}\n  Description: ${task.description}\n  Priority: ${task.priority}`
+            )
             .join("\n")
-        );
-      })
+      )
       .join("\n\n");
 
-    return `${date}\n\n${content}\n\n#todo(user)`;
+    return `${formatDate()}\n\n${content}\n\n#todo(user)`;
   };
 
-  const generateReportContent = (columns: Columns): string => {
-    const date = formatDate();
-    const content = Object.entries(columns)
-      .map(([columnKey, column]) => {
-        return (
+  const generateReportContent = (data: Columns) => {
+    if (Object.keys(data).length === 0) return "No tasks available";
+
+    const content = Object.values(data)
+      .map(
+        (column) =>
           `${column.name}\n` +
           column.items
-            .map((task) => {
-              return `- ${task.title}\n  Description: ${task.description}\n  Priority: ${task.priority}\n  Progress: ${task.progress}%\n`;
-            })
+            .map(
+              (task) =>
+                `- ${task.title}\n  Description: ${task.description}\n  Priority: ${task.priority}\n  Progress: ${task.progress}%`
+            )
             .join("\n")
-        );
-      })
+      )
       .join("\n\n");
 
-    return `${date}\n\n${content}\n\n#report`;
-  };
-
-  const openToDoModal = () => {
-    setShowToDoModal(true);
-    setShowReportModal(false);
-  };
-
-  const openReportModal = () => {
-    setShowReportModal(true);
-    setShowToDoModal(false);
+    return `${formatDate()}\n\n${content}\n\n#report`;
   };
 
   const closeModal = () => {
@@ -73,71 +104,80 @@ const GenerateModal = () => {
     setShowReportModal(false);
   };
 
-  if (!columns) return <p>Loading...</p>;
-
+  /* =========================
+     UI
+  ========================= */
   return (
     <div className="p-4">
-      <div className="fixed bottom-4 right-4 flex gap-2">
+      {/* Floating Buttons */}
+      <div className="fixed bottom-4 right-4 flex gap-2 z-40">
         <button
-          onClick={openToDoModal}
-          className="relative bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow-lg"
+          onClick={() => {
+            setShowToDoModal(true);
+            setShowReportModal(false);
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow"
         >
           Generate To-do
-          <span className="absolute bottom-full mb-2 hidden w-max whitespace-nowrap text-xs text-white bg-black rounded-md px-2 py-1 group-hover:block">
-            Generate To-do
-          </span>
         </button>
+
         <button
-          onClick={openReportModal}
-          className="relative bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg shadow-lg"
+          onClick={() => {
+            setShowReportModal(true);
+            setShowToDoModal(false);
+          }}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg shadow"
         >
           Generate Report
-          <span className="absolute bottom-full mb-2 hidden w-max whitespace-nowrap text-xs text-white bg-black rounded-md px-2 py-1 group-hover:block">
-            Generate Report
-          </span>
         </button>
       </div>
 
+      {/* =========================
+          ToDo Modal
+      ========================= */}
       {showToDoModal && (
-        <div className="fixed inset-0 flex justify-center z-50 bg-black bg-opacity-30">
-          <div className="bg-white shadow-lg rounded-lg p-6 max-w-2xl w-full overflow-y-auto max-h-96">
-            <h2 className="text-xl font-bold mb-4">Generate ToDo</h2>
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">
-              {formatDate()}
-            </h3>
-            <div>
-              {Object.entries(columns).map(([columnKey, column]) => (
-                <div key={columnKey}>
+        <div className="fixed inset-0 z-50 flex justify-center bg-black/30">
+          <div className="bg-white p-6 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-1">Generate ToDo</h2>
+            <p className="text-sm text-gray-500 mb-4">{formatDate()}</p>
+
+            {loading ? (
+              <SkeletonModal />
+            ) : isEmpty ? (
+              <p className="text-gray-500 italic text-sm">
+                Tidak ada task untuk ditampilkan
+              </p>
+            ) : (
+              Object.entries(columns).map(([key, column]) => (
+                <div key={key} className="mb-4">
                   <h3 className="font-semibold mb-2">{column.name}</h3>
-                  <ul className="list-disc pl-5 mb-4">
+                  <ul className="list-disc pl-5">
                     {column.items.map((task) => (
-                      <li key={task.id} className="mb-2">
+                      <li key={task.id}>
                         <p className="font-semibold">{task.title}</p>
-                        <p>{task.description}</p>
-                        <p className="text-sm font-bold">
+                        <p className="text-sm">{task.description}</p>
+                        <p className="text-xs font-bold">
                           Priority: {task.priority}
                         </p>
                       </li>
                     ))}
                   </ul>
                 </div>
-              ))}
-            </div>
-            <div className="flex justify-end mt-4">
+              ))
+            )}
+
+            <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={closeModal}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded mr-2"
+                className="px-4 py-2 bg-gray-300 rounded"
               >
                 Close
               </button>
               <button
-                onClick={() => {
-                  const toDoContent = columns
-                    ? generateToDoContent(columns)
-                    : "No tasks available";
-                  navigator.clipboard.writeText(toDoContent);
-                }}
-                className="bg-green-500 text-white px-4 py-2 rounded"
+                onClick={() =>
+                  navigator.clipboard.writeText(generateToDoContent(columns))
+                }
+                className="px-4 py-2 bg-green-600 text-white rounded"
               >
                 Copy
               </button>
@@ -146,49 +186,52 @@ const GenerateModal = () => {
         </div>
       )}
 
+      {/* =========================
+          Report Modal
+      ========================= */}
       {showReportModal && (
-        <div className="fixed inset-0 flex justify-center z-50 bg-black bg-opacity-30">
-          <div className="bg-white shadow-lg rounded-lg p-6 max-w-md w-full overflow-y-auto max-h-96">
-            <h2 className="text-xl font-bold mb-4">Generate Report</h2>
-            <h3 className="text-sm font-semibold text-gray-800 mb-4">
-              Date: {formatDate()}
-            </h3>
-            <div>
-              {Object.entries(columns).map(([columnKey, column]) => (
-                <div key={columnKey}>
+        <div className="fixed inset-0 z-50 flex justify-center bg-black/30">
+          <div className="bg-white p-6 rounded-lg max-w-xl w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-xl font-bold mb-1">Generate Report</h2>
+            <p className="text-sm text-gray-500 mb-4">{formatDate()}</p>
+
+            {loading ? (
+              <SkeletonModal />
+            ) : isEmpty ? (
+              <p className="text-gray-500 italic text-sm">
+                Tidak ada task untuk ditampilkan
+              </p>
+            ) : (
+              Object.entries(columns).map(([key, column]) => (
+                <div key={key} className="mb-4">
                   <h3 className="font-semibold mb-2">{column.name}</h3>
-                  <ul className="list-disc pl-5 mb-4">
+                  <ul className="list-disc pl-5">
                     {column.items.map((task) => (
-                      <li key={task.id} className="mb-2">
+                      <li key={task.id}>
                         <p className="font-semibold">{task.title}</p>
-                        <p>{task.description}</p>
-                        <p className="text-sm font-bold">
-                          Priority: {task.priority}
-                        </p>
-                        <p className="text-sm font-semibold">
+                        <p className="text-sm">{task.description}</p>
+                        <p className="text-xs font-bold">
                           Progress: {task.progress}%
                         </p>
                       </li>
                     ))}
                   </ul>
                 </div>
-              ))}
-            </div>
-            <div className="flex justify-end mt-4">
+              ))
+            )}
+
+            <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={closeModal}
-                className="bg-gray-300 text-gray-700 px-4 py-2 rounded mr-2"
+                className="px-4 py-2 bg-gray-300 rounded"
               >
                 Close
               </button>
               <button
-                onClick={() => {
-                  const reportContent = columns
-                    ? generateReportContent(columns)
-                    : "No tasks available";
-                  navigator.clipboard.writeText(reportContent);
-                }}
-                className="bg-blue-500 text-white px-4 py-2 rounded ml-2"
+                onClick={() =>
+                  navigator.clipboard.writeText(generateReportContent(columns))
+                }
+                className="px-4 py-2 bg-blue-600 text-white rounded"
               >
                 Copy
               </button>

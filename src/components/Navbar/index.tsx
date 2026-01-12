@@ -8,7 +8,7 @@ import {
   ShareSocialOutline,
 } from "react-ionicons";
 import { Menu } from "@headlessui/react";
-import { TaskT, Columns } from "../../types";
+import { TaskT, Columns } from "../../types/task";
 import { NotificationMenuItems } from "../Dropdown/notificationDropdown";
 
 const Navbar: React.FC = () => {

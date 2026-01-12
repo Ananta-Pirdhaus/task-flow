@@ -1,7 +1,8 @@
-import http from "@/lib/axios";
+import { axiosInstance } from "@/lib/axios";
 import type {
   LoginPayload,
   LoginResponse,
+  LoginResponseData,
   RegisterPayload,
   RegisterResponse,
   VerifyOtpPayload,
@@ -14,8 +15,11 @@ import type {
 export const registerHandler = async (
   payload: RegisterPayload
 ): Promise<RegisterResponse> => {
-  const response = await http.post("/auth/register", payload);
-  return response as unknown as RegisterResponse;
+  const response = await axiosInstance.post<RegisterResponse>(
+    "/auth/register",
+    payload
+  );
+  return response.data; // interceptor sudah unwrap data
 };
 
 /* =========================
@@ -24,16 +28,26 @@ export const registerHandler = async (
 export const loginHandler = async (
   payload: LoginPayload
 ): Promise<LoginResponse> => {
-  const response = await http.post("/auth/login", payload);
-  return response as unknown as LoginResponse;
+  const response = await axiosInstance.post<LoginResponse>(
+    "/auth/login",
+    payload
+  );
+  return response.data; // data sudah di-unwrapped
 };
 
 /* =========================
    VERIFY OTP (Tahap 2: Get Token)
 ========================= */
+/* authService.ts */
+
+// Ubah return type menjadi LoginResponseData karena data sudah di-unwrapped oleh interceptor
 export const verifyOtpHandler = async (
   payload: VerifyOtpPayload
-): Promise<VerifyOtpResponse> => {
-  const response = await http.post("/auth/verify-otp", payload);
-  return response as unknown as VerifyOtpResponse;
+): Promise<LoginResponseData> => {
+  const response = await axiosInstance.post<VerifyOtpResponse>(
+    "/auth/verify-otp",
+    payload
+  );
+  // @ts-ignore - jika interceptor kamu mengembalikan response.data secara global
+  return response.data; 
 };
