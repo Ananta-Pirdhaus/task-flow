@@ -10,58 +10,110 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*") 
+@CrossOrigin(origins = "*")
 public class AuthController {
+
     private final AuthService authService;
 
     public AuthController(AuthService authService) {
         this.authService = authService;
     }
 
+    // ================= REGISTER =================
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<AuthUserDTO>> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<ApiResponse<AuthUserDTO>> register(
+            @RequestBody RegisterRequest request
+    ) {
         try {
-            return ResponseEntity.ok(new ApiResponse<>("success", "User berhasil didaftarkan", authService.register(request)));
+            AuthUserDTO user = authService.register(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    new ApiResponse<>(
+                            true,
+                            "User berhasil didaftarkan",
+                            user
+                    )
+            );
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new ApiResponse<>("error", e.getMessage(), null));
+            return ResponseEntity.badRequest().body(
+                    new ApiResponse<>(
+                            false,
+                            e.getMessage(),
+                            null
+                    )
+            );
         }
     }
 
     /**
-     * Endpoint Tahap 1: Cek Email & Password
-     * Mengembalikan status OTP_REQUIRED jika sukses
+     * ================= LOGIN STEP 1 =================
+     * Cek email & password
+     * Return info bahwa OTP dibutuhkan
      */
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Object>> login(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<ApiResponse<Map<String, Object>>> login(
+            @RequestBody Map<String, String> payload
+    ) {
         try {
-            // Kita gunakan Object sebagai generic ApiResponse karena isinya sekarang berupa Map (status & email)
             Map<String, Object> loginStatus = authService.login(payload);
-            return ResponseEntity.ok(new ApiResponse<>("success", "Silakan masukkan kode OTP", loginStatus));
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(
+                            true,
+                            "Silakan masukkan kode OTP",
+                            loginStatus
+                    )
+            );
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ApiResponse<>("error", e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    new ApiResponse<>(
+                            false,
+                            e.getMessage(),
+                            null
+                    )
+            );
         }
     }
 
     /**
-     * Endpoint Tahap 2: Verifikasi OTP
-     * Mengembalikan JWT Token dan Data User jika OTP benar
+     * ================= LOGIN STEP 2 =================
+     * Verifikasi OTP
+     * Return JWT + user data
      */
     @PostMapping("/verify-otp")
-    public ResponseEntity<ApiResponse<LoginResponseData>> verifyOtp(@RequestBody Map<String, String> payload) {
+    public ResponseEntity<ApiResponse<LoginResponseData>> verifyOtp(
+            @RequestBody Map<String, String> payload
+    ) {
         try {
             String email = payload.get("email");
             String code = payload.get("code");
 
             if (email == null || code == null) {
-                throw new RuntimeException("Email dan Kode OTP wajib diisi");
+                return ResponseEntity.badRequest().body(
+                        new ApiResponse<>(
+                                false,
+                                "Email dan Kode OTP wajib diisi",
+                                null
+                        )
+                );
             }
 
             LoginResponseData response = authService.verifyOtp(email, code);
-            return ResponseEntity.ok(new ApiResponse<>("success", "Login Berhasil", response));
+
+            return ResponseEntity.ok(
+                    new ApiResponse<>(
+                            true,
+                            "Login berhasil",
+                            response
+                    )
+            );
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ApiResponse<>("error", e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                    new ApiResponse<>(
+                            false,
+                            e.getMessage(),
+                            null
+                    )
+            );
         }
     }
 }

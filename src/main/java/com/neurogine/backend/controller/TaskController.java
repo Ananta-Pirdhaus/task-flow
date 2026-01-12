@@ -1,6 +1,8 @@
 package com.neurogine.backend.controller;
 
-import com.neurogine.backend.dto.TaskRequestDTO;
+import com.neurogine.backend.dto.ApiResponse;
+import com.neurogine.backend.dto.task.TaskRequestDTO;
+import com.neurogine.backend.dto.task.TaskResponseDTO;
 import com.neurogine.backend.entity.task.Task;
 import com.neurogine.backend.service.TaskService;
 
@@ -19,59 +21,70 @@ public class TaskController {
     @Autowired
     private TaskService taskService;
 
-    // =========================
-    // CREATE
-    // =========================
-    @PostMapping
-    public ResponseEntity<Task> createTask(@RequestBody TaskRequestDTO dto) {
-        Task savedTask = taskService.saveTask(dto);
-        return new ResponseEntity<>(savedTask, HttpStatus.CREATED);
-    }
-
-    // =========================
-    // READ - ALL
-    // =========================
-    @GetMapping
-    public ResponseEntity<List<Task>> getAllTasks() {
-        return ResponseEntity.ok(taskService.getAllTasks());
-    }
-
-    // =========================
-    // READ - BY ID
-    // =========================
-    @GetMapping("/{id}")
-    public ResponseEntity<Task> getTaskById(@PathVariable String id) {
-        Task task = taskService.getTaskById(id);
-        return ResponseEntity.ok(task);
-    }
-
-    // =========================
-    // READ - BY USER
-    // =========================
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Task>> getTasksByUser(@PathVariable Long userId) {
-        List<Task> tasks = taskService.getTasksByUser(userId);
-        return ResponseEntity.ok(tasks);
-    }
-
-    // =========================
-    // UPDATE
-    // =========================
-    @PutMapping("/{id}")
-    public ResponseEntity<Task> updateTask(
-            @PathVariable String id,
+    // ================= CREATE =================
+    @PostMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<TaskResponseDTO>> create(
+            @PathVariable Long userId,
             @RequestBody TaskRequestDTO dto
     ) {
-        Task updatedTask = taskService.updateTask(id, dto);
-        return ResponseEntity.ok(updatedTask);
+        Task task = taskService.create(userId, dto);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new ApiResponse<>(
+                        true,
+                        "Task created successfully",
+                        taskService.toResponse(task)
+                ));
     }
 
-    // =========================
-    // DELETE
-    // =========================
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable String id) {
-        taskService.deleteTask(id);
-        return ResponseEntity.noContent().build();
+    // ================= READ ALL BY USER =================
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<List<TaskResponseDTO>>> findByUser(
+            @PathVariable Long userId
+    ) {
+        List<TaskResponseDTO> data = taskService.findByUser(userId)
+                .stream()
+                .map(taskService::toResponse)
+                .toList();
+
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Tasks fetched by user", data)
+        );
+    }
+
+    // ================= READ BY ID & USER =================
+    @GetMapping("/{id}/user/{userId}")
+    public ResponseEntity<ApiResponse<TaskResponseDTO>> findById(
+            @PathVariable String id,
+            @PathVariable Long userId
+    ) {
+        Task task = taskService.findByIdAndUser(id, userId);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Task fetched", taskService.toResponse(task))
+        );
+    }
+
+    // ================= UPDATE =================
+    @PutMapping("/{id}/user/{userId}")
+    public ResponseEntity<ApiResponse<TaskResponseDTO>> update(
+            @PathVariable String id,
+            @PathVariable Long userId,
+            @RequestBody TaskRequestDTO dto
+    ) {
+        Task updated = taskService.update(id, userId, dto);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Task updated", taskService.toResponse(updated))
+        );
+    }
+
+    // ================= DELETE =================
+    @DeleteMapping("/{id}/user/{userId}")
+    public ResponseEntity<ApiResponse<Void>> delete(
+            @PathVariable String id,
+            @PathVariable Long userId
+    ) {
+        taskService.delete(id, userId);
+        return ResponseEntity.ok(
+                new ApiResponse<>(true, "Task deleted", null)
+        );
     }
 }

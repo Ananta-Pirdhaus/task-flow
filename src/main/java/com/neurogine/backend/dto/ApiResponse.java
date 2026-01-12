@@ -1,11 +1,12 @@
 package com.neurogine.backend.dto;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
 @Data
 @AllArgsConstructor
 public class ApiResponse<T> {
-    private String status; // "success" | "error"
+    private boolean success;
     private String message;
     private T data;
 }
