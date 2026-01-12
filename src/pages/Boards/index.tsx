@@ -1,5 +1,3 @@
-"use client";
-
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useTasks } from "../../context/TaskContext";
 import TaskModal from "../../components/Modals/TaskModal";
@@ -17,16 +15,14 @@ const ColumnSkeleton = () => (
   </div>
 );
 
-const Home = () => {
+const Board = () => {
   const {
     columns,
     loading,
     onDragEnd,
-
     modalOpen,
     setModalOpen,
     setSelectedColumn,
-    selectedTask,
     setSelectedTask,
 
     deleteTask,
@@ -137,14 +133,6 @@ const Home = () => {
                                     <Task
                                       task={task}
                                       provided={provided}
-                                      onView={() => {
-                                        setSelectedTask(task);
-                                        setModalOpen(true);
-                                      }}
-                                      onEdit={() => {
-                                        setSelectedTask(task);
-                                        setModalOpen(true);
-                                      }}
                                       onDelete={() => deleteTask(task.id)}
                                     />
                                   </div>
@@ -177,13 +165,17 @@ const Home = () => {
       </div>
 
       {/* SINGLE MODAL */}
-      {modalOpen && <TaskModal isOpen={modalOpen} setOpen={setModalOpen} onClose={function (): void {
-        throw new Error("Function not implemented.");
-      } } />}
+      {modalOpen && (
+        <TaskModal
+          isOpen={modalOpen}
+          setOpen={setModalOpen}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
 
       <GenerateModal />
     </>
   );
 };
 
-export default Home;
+export default Board;

@@ -8,16 +8,13 @@ import {
   Layout,
   AlignLeft,
   Image as ImageIcon,
-  AlertCircle,
-  ArrowDownCircle,
-  MinusCircle,
 } from "lucide-react";
 import { getRandomColors } from "../../helpers/getRandomColors";
 import { useTasks } from "../../context/TaskContext";
 import { TaskData } from "../../types/task";
 import Cookies from "js-cookie";
 
-interface AddModalProps {
+interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   setOpen: (val: boolean) => void;
@@ -25,7 +22,7 @@ interface AddModalProps {
   handleEditTask?: (taskData: TaskData) => void; // optional, for edit mode
 }
 
-const AddModal = ({ isOpen, onClose, setOpen }: AddModalProps) => {
+const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
   const { modalMode, selectedColumn, selectedTask, addTask, editTask } =
     useTasks();
 
@@ -122,7 +119,7 @@ const AddModal = ({ isOpen, onClose, setOpen }: AddModalProps) => {
     const payload = {
       ...taskData,
       user_id: userId,
-      task_type: selectedColumn || "backlog",
+      taskType: selectedColumn || "backlog",
       tags: taskData.tags.map((t: any) => ({ title: t.title, color: t.bg })),
     };
 
@@ -414,4 +411,4 @@ const AddModal = ({ isOpen, onClose, setOpen }: AddModalProps) => {
   );
 };
 
-export default AddModal;
+export default TaskModal;

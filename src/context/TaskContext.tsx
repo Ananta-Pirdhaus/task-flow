@@ -17,17 +17,17 @@ export type TaskModalMode = "add" | "edit" | "view";
 interface TaskContextType {
   columns: Columns;
   loading: boolean;
-  // Modal States
+
   modalOpen: boolean;
   modalMode: TaskModalMode;
   setModalOpen: (v: boolean) => void;
   setModalMode: (m: TaskModalMode) => void;
-  // Selection States
+
   selectedColumn: keyof Columns;
   setSelectedColumn: (id: keyof Columns) => void;
   selectedTask: TaskData | null;
   setSelectedTask: (task: TaskData | null) => void;
-  // Actions
+
   fetchTasks: () => Promise<void>;
   addTask: (task: any) => Promise<void>;
   editTask: (task: any) => Promise<void>;
@@ -46,35 +46,30 @@ const defaultColumns: Columns = {
 export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const [columns, setColumns] = useState<Columns>(defaultColumns);
   const [loading, setLoading] = useState(false);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<TaskModalMode>("add");
+
   const [selectedColumn, setSelectedColumn] =
     useState<keyof Columns>("backlog");
   const [selectedTask, setSelectedTask] = useState<TaskData | null>(null);
 
-  const fetchTasks = async (p0?: boolean) => {
-    const token = Cookies.get("token");
-    const role = Cookies.get("role_name");
-    const userId = Cookies.get("user_id");
+  // Ambil dari cookies
+  const role = Cookies.get("role_name");
+  const userId = Cookies.get("user_id");
 
-    if (!token) return;
+  /* ========================= FETCH ========================= */
+  const fetchTasks = async () => {
+    if (role === "Employee" && !userId) return;
 
     try {
       setLoading(true);
-      let endpoint = "/tasks";
-      if (role === "Employee" && userId) endpoint = `/tasks/user/${userId}`;
+
+      const endpoint = role === "Employee" ? `/tasks/user/${userId}` : `/tasks`;
 
       const res = await axiosInstance.get(endpoint);
-      console.log("Full API response:", res);
 
-      // fix: ambil array dari res atau res.data
-      const tasks: TaskData[] = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res)
-        ? res
-        : [];
-
-      console.log("tasks array:", tasks);
+      const tasks: TaskData[] = Array.isArray(res.data) ? res.data : [];
 
       const structured: Columns = {
         backlog: { name: "Backlog", items: [] },
@@ -83,67 +78,61 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       };
 
       tasks.forEach((task) => {
-        const colKey = (task.task_type as keyof Columns) || "backlog";
-        console.log(
-          `Task ${task.id} | Title: ${task.title} | task_type: ${task.task_type} | role: ${role} -> column: ${colKey}`
-        );
-        if (structured[colKey]) structured[colKey].items.push(task);
+        const key: keyof Columns =
+          task.taskType === "backlog" ||
+          task.taskType === "inprogress" ||
+          task.taskType === "done"
+            ? task.taskType
+            : "backlog";
+
+        structured[key].items.push({ ...task, taskType: key });
       });
 
-      console.log("structured columns before set:", structured);
       setColumns(structured);
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error(err);
+      toast.error("Failed to fetch tasks");
     } finally {
       setLoading(false);
     }
   };
 
+  /* ========================= ADD ========================= */
   const addTask = async (payload: any) => {
     try {
-      // 1. Kirim data ke backend
-      const { data } = await axiosInstance.post("/tasks", payload);
+      const endpoint = role === "Employee" ? `/tasks/user/${userId}` : `/tasks`;
 
-      // Asumsikan backend mengembalikan object task yang sudah punya ID dan format lengkap
-      const newTask: TaskData = data;
+      const { data } = await axiosInstance.post(endpoint, payload);
 
-      // 2. Update UI secara manual (Optimistic Update)
-      setColumns((prev) => {
-        const colKey = newTask.task_type || "backlog";
+      const task: TaskData = {
+        ...data,
+        task_type: data.task_type || selectedColumn,
+      };
 
-        // Salin state lama
-        const updatedColumns = { ...prev };
+      setColumns((prev) => ({
+        ...prev,
+        [task.taskType]: {
+          ...prev[task.taskType],
+          items: [...prev[task.taskType].items, task],
+        },
+      }));
 
-        // JIKA kolom belum ada (misal user input tipe baru), buat kolomnya dulu
-        if (!updatedColumns[colKey]) {
-          updatedColumns[colKey] = {
-            name: colKey.charAt(0).toUpperCase() + colKey.slice(1),
-            items: [],
-          };
-        }
-
-        // Tambahkan task baru ke dalam array items kolom tersebut
-        updatedColumns[colKey] = {
-          ...updatedColumns[colKey],
-          items: [...updatedColumns[colKey].items, newTask],
-        };
-
-        return updatedColumns;
-      });
-
-      toast.success("Task created successfully!");
-
-      // 3. Sinkronisasi background (tanpa loading spinner)
-      // Ini penting jika ada field yang diisi otomatis oleh database (seperti created_at)
-      fetchTasks(false);
+      toast.success("Task created");
     } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to add task");
+      toast.error(err.response?.data?.message || "Add task failed");
     }
   };
 
+  /* ========================= EDIT ========================= */
   const editTask = async (updated: any) => {
     try {
-      const { data } = await axiosInstance.put(`/tasks/${updated.id}`, updated);
+      const endpoint =
+        role === "Employee"
+          ? `/tasks/${updated.id}/user/${userId}`
+          : `/tasks/${updated.id}`;
+
+      const { data } = await axiosInstance.put(endpoint, updated);
+
       setColumns((prev) => {
         const copy = { ...prev };
         (Object.keys(copy) as (keyof Columns)[]).forEach((col) => {
@@ -153,15 +142,24 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         });
         return copy;
       });
+
       toast.info("Task updated");
-    } catch (err: any) {
+    } catch {
       toast.error("Update failed");
     }
   };
 
+
+  /* ========================= DELETE ========================= */
   const deleteTask = async (taskId: string | number) => {
     try {
-      await axiosInstance.delete(`/tasks/${taskId}`);
+      const endpoint =
+        role === "Employee"
+          ? `/tasks/${taskId}/user/${userId}`
+          : `/tasks/${taskId}`;
+
+      await axiosInstance.delete(endpoint);
+
       setColumns((prev) => {
         const copy = { ...prev };
         (Object.keys(copy) as (keyof Columns)[]).forEach((col) => {
@@ -169,15 +167,17 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
         });
         return copy;
       });
+
       toast.warn("Task deleted");
-    } catch (err: any) {
+    } catch {
       toast.error("Delete failed");
     }
   };
 
+  /* ========================= DRAG ========================= */
   const onDragEnd = (result: DropResult) => {
     dragLogic(result, columns, setColumns);
-    // Note: Idealnya panggil API update task_type di sini
+    // bisa panggil API update task_type di sini
   };
 
   useEffect(() => {

@@ -5,29 +5,30 @@ export type Tag = {
 };
 
 export type TaskT = {
-  id: string; // UUID
+  id: string;
   title: string;
   description: string;
   priority: "high" | "medium" | "low";
 
-  task_type: "backlog" | "inprogress" | "done"; // STRING dari backend
+  taskType: "backlog" | "inprogress" | "done"; // camelCase
 
-  start_date: string;
-  end_date: string;
-  start_time: string;
-  end_time: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
 
   image: string | null;
   alt: string | null;
 
   progress: number;
-  user_id: number;
+  userId: number;
 
-  created_at: string;
-  updated_at: string;
+  createdAt: string;
+  updatedAt: string;
 
   tags: Tag[];
 };
+
 
 // Alias
 export type TaskData = TaskT;
