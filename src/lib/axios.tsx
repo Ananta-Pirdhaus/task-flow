@@ -35,7 +35,7 @@ export const axiosInstance: AxiosInstance = axios.create({
   baseURL: "/api",
   timeout: 10000,
   headers: { "Content-Type": "application/json" },
-  withCredentials: true,
+  // withCredentials: true,
 });
 
 /* ======================
@@ -60,7 +60,7 @@ axiosInstance.interceptors.response.use(
     const isLoginPage = window.location.pathname === "/login";
 
     // HANYA redirect jika kena 401/403 DAN user sedang TIDAK di halaman login
-    if ((status === 401 || status === 403) && !isLoginPage) {
+    if ((status === 401) && !isLoginPage) {
       clearAuthSession();
       window.location.replace("/login");
       return Promise.reject(error);

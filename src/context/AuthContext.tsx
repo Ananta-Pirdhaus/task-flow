@@ -62,17 +62,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   }, []);
 
-  // --- 2. Helper Fungsi Redirect berdasarkan Role ---
-  const redirectUser = (role: string) => {
-    if (role === "Admin") {
-      navigate("/admin/analytics");
-    } else if (role === "Project Lead") {
-      navigate("/project-leader/dashboard");
-    } else {
-      navigate("/"); // User biasa atau default
-    }
-  };
-
   // --- 3. Fungsi Login (Tahap 1: Request OTP) ---
   const login = async (payload: LoginPayload) => {
     return await loginHandler(payload);

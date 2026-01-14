@@ -11,7 +11,7 @@ import Newsletter from "../pages/Admin/Newsletter";
 import Workflow from "../pages/Admin/WorkFlow";
 import Analytics from "../pages/Admin/Analytics";
 import ProjectLeaderDashboard from "../pages/ProjectLeader/ProjectLeaderDashboard";
-import TaskDetails from "../pages/ProjectLeader/TaskDetails";
+import TaskDetails from "../pages/ProjectLeader/ProjectList";
 import UserTaskPage from "../pages/ProjectLeader/UserTask";
 
 const routes: RouteObject[] = [
@@ -33,7 +33,7 @@ const routes: RouteObject[] = [
     element: <PrivateRoute element={<Layout />} isRole="Project Lead" />,
     children: [
       { path: "dashboard", element: <ProjectLeaderDashboard /> },
-      { path: "task-detail", element: <TaskDetails /> },
+      { path: "list-project", element: <TaskDetails /> },
       { path: "user-task", element: <UserTaskPage /> },
     ],
   },

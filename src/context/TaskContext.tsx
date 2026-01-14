@@ -11,6 +11,7 @@ import { toast } from "react-toastify";
 import { DropResult } from "react-beautiful-dnd";
 import { onDragEnd as dragLogic } from "../helpers/onDragEnd";
 import Cookies from "js-cookie";
+import { useAuth } from "@/context/AuthContext";
 
 export type TaskModalMode = "add" | "edit" | "view";
 
@@ -44,6 +45,7 @@ const defaultColumns: Columns = {
 };
 
 export const TaskProvider = ({ children }: { children: ReactNode }) => {
+  const { user, loading: authLoading } = useAuth();
   const [columns, setColumns] = useState<Columns>(defaultColumns);
   const [loading, setLoading] = useState(false);
 
@@ -58,8 +60,17 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const role = Cookies.get("role_name");
   const userId = Cookies.get("user_id");
 
+  useEffect(() => {
+    if (authLoading) return;
+
+    const userId = user?.id || Cookies.get("user_id");
+    if (!userId) return;
+
+    fetchTasks(userId);
+  }, [authLoading, user?.id]);
+
   /* ========================= FETCH ========================= */
-  const fetchTasks = async () => {
+  const fetchTasks = async (userId?: string | number) => {
     if (role === "Employee" && !userId) return;
 
     try {
@@ -149,7 +160,6 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-
   /* ========================= DELETE ========================= */
   const deleteTask = async (taskId: string | number) => {
     try {
@@ -176,8 +186,35 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
 
   /* ========================= DRAG ========================= */
   const onDragEnd = (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+
+    // Jika drop di posisi yang sama → abaikan
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    // 1. Update UI dulu (optimistic)
     dragLogic(result, columns, setColumns);
-    // bisa panggil API update task_type di sini
+
+    // 2. Jika pindah column → update ke backend
+    if (destination.droppableId !== source.droppableId) {
+      const sourceCol = source.droppableId as keyof Columns;
+      const task = columns[sourceCol].items.find(
+        (t) => t.id.toString() === draggableId
+      );
+
+      if (!task) return;
+
+      editTask({
+        ...task,
+        taskType: destination.droppableId, // 🔥 INI KUNCINYA
+      });
+    }
   };
 
   useEffect(() => {

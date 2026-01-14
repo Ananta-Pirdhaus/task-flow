@@ -1,25 +1,9 @@
-import React, { useState, useEffect } from "react";
-import { TaskT, TagT } from "../../types/task"; // Ensure TaskT and TagT types are correctly defined
-import AddModal from "../../components/Modals/TaskModal";
-import EditModal from "../../components/Modals/EditModal";
-import { toast } from "react-toastify"; // Import toast for notifications
-import ToastProvider from "../../helpers/onNotifications";
-import { axiosInstance } from "../../lib/axios";
-import { getRandomColors } from "../../helpers/getRandomColors";
+import React from "react";
+import { TaskData, Tag } from "../../types/task";
+import { useTasks } from "../../context/TaskContext";
+import TaskDetailModal from "../../components/Modals/TaskModal";
 
-// Function to fetch tasks from the backend
-const fetchProjectData = async (): Promise<TaskT[]> => {
-  try {
-    const response = await axiosInstance.get("/tasks"); // Replace with your actual API endpoint
-    return response.data.data; // Assuming the data array is in response.data.data
-  } catch (error) {
-    console.error("Error fetching tasks", error);
-    toast.error("Gagal memuat data tugas!");
-    return []; // Return an empty array in case of an error
-  }
-};
-
-// Function to calculate project duration
+/* ========================= UTIL ========================= */
 const calculateDuration = (
   startDate: string,
   endDate: string,
@@ -35,191 +19,105 @@ const calculateDuration = (
     return `${Math.floor(diffHours)} jam`;
   }
 
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const diffDays = Math.ceil(
+    Math.abs(end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+  );
 
-  if (diffDays < 7) {
-    return `${diffDays} hari`;
-  } else if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7);
-    return `${weeks} minggu`;
-  } else {
-    const months = Math.floor(diffDays / 30);
-    return `${months} bulan`;
-  }
+  if (diffDays < 7) return `${diffDays} hari`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} minggu`;
+  return `${Math.floor(diffDays / 30)} bulan`;
 };
 
+/* ========================= COMPONENT ========================= */
 const Project: React.FC = () => {
-  const [projectData, setProjectData] = useState<TaskT[]>([]);
-  const [isAddModalOpen, setAddModalOpen] = useState(false);
-  const [isEditModalOpen, setEditModalOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<TaskT | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const { columns, loading, setSelectedTask, setModalOpen, modalOpen } =
+    useTasks();
 
-  useEffect(() => {
-    const getTasks = async () => {
-      const tasks = await fetchProjectData();
-      setProjectData(tasks);
-      setLoading(false); // Set loading to false once data is fetched
-    };
-    getTasks();
-  }, []);
-
-  const openAddModal = () => setAddModalOpen(true);
-  const openEditModal = (project: TaskT) => {
-    setSelectedProject(project);
-    setEditModalOpen(true);
-  };
-  const closeModals = () => {
-    setAddModalOpen(false);
-    setEditModalOpen(false);
-    setSelectedProject(null);
-  };
-
-  // Function to handle adding a task
-  const handleAddTask = (task: TaskT) => {
-    setProjectData((prevTasks) => [...prevTasks, task]);
-    toast.success("Task berhasil ditambahkan!"); // Show success notification
-    closeModals();
-  };
-
-  // Function to handle editing a task
-  const handleEditTask = (task: TaskT) => {
-    setProjectData((prevTasks) =>
-      prevTasks.map((t) => (t.id === task.id ? task : t))
-    );
-    toast.success("Task berhasil diedit!"); // Show success notification
-    closeModals();
-  };
-
-  // Function to handle deleting a task
-  const handleDeleteTask = (taskId: string) => {
-    setProjectData((prevTasks) => prevTasks.filter((t) => t.id !== taskId));
-    toast.success("Task berhasil dihapus!"); // Show success notification
-  };
+  const allTasks: TaskData[] = [
+    ...columns.backlog.items,
+    ...columns.inprogress.items,
+    ...columns.done.items,
+  ];
 
   if (loading) {
-    return <div>Loading...</div>; // Show loading indicator while fetching data
+    return <div className="text-white">Loading...</div>;
   }
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl text-white font-bold mb-4">Daftar Proyek</h1>
+      <h1 className="text-2xl text-white font-bold mb-4">Daftar Task</h1>
 
       <table className="min-w-full rounded-lg overflow-hidden shadow-md border border-gray-200">
         <thead className="bg-gray-100">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nama
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Task Type
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Deskripsi
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Prioritas
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Range Task
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Tag
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Progress
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Action
-            </th>
+            {[
+              "Nama",
+              "Task Type",
+              "Deskripsi",
+              "Prioritas",
+              "Range Task",
+              "Tag",
+              "Progress",
+            ].map((h) => (
+              <th
+                key={h}
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+              >
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
+
         <tbody className="bg-white divide-y divide-gray-200">
-          {projectData.map((project, index) => (
+          {allTasks.map((task, index) => (
             <tr
-              key={project.id}
-              className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}
+              key={task.id}
+              onClick={() => {
+                setSelectedTask(task);
+                setModalOpen(true);
+              }}
+              className={`cursor-pointer hover:bg-gray-100 ${
+                index % 2 === 0 ? "bg-gray-50" : "bg-white"
+              }`}
             >
-              <td className="px-6 py-4 whitespace-nowrap">{project.title}</td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {project.task_type.type}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {project.description}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {project.priority}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+              <td className="px-6 py-4">{task.title}</td>
+              <td className="px-6 py-4 capitalize">{task.taskType}</td>
+              <td className="px-6 py-4">{task.description}</td>
+              <td className="px-6 py-4">{task.priority}</td>
+              <td className="px-6 py-4">
                 {calculateDuration(
-                  project.startDate,
-                  project.endDate,
-                  project.startTime,
-                  project.endTime
+                  task.startDate,
+                  task.endDate,
+                  task.startTime,
+                  task.endTime
                 )}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {project.tags.map((tag: TagT) => {
-                  const { bg, text } = getRandomColors(); // Get random colors
-                  return (
-                    <span
-                      key={tag.id}
-                      className="mr-2"
-                      style={{ backgroundColor: bg, color: text }}
-                    >
-                      {tag.title}
-                    </span>
-                  );
-                })}
+              <td className="px-6 py-4 flex gap-2 flex-wrap">
+                {task.tags.map((tag: Tag) => (
+                  <span
+                    key={tag.id}
+                    className="px-2 py-1 rounded text-xs font-medium"
+                    style={{
+                      backgroundColor: tag.color,
+                    }}
+                  >
+                    {tag.title}
+                  </span>
+                ))}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                {project.progress}%
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <button
-                  onClick={openAddModal}
-                  className="px-4 py-2 font-medium text-white bg-green-600 rounded-md hover:bg-green-500"
-                >
-                  Tambah
-                </button>
-                <button
-                  onClick={() => openEditModal(project)}
-                  className="mx-2 px-4 py-2 font-medium text-white bg-blue-600 rounded-md hover:bg-blue-500 focus:outline-none"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteTask(project.id)}
-                  className="px-4 py-2 font-medium text-white bg-orange-600 rounded-md hover:bg-orange-500 focus:outline-none"
-                >
-                  Delete
-                </button>
-              </td>
+              <td className="px-6 py-4">{task.progress}%</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* Modal Components */}
-      <AddModal
-        isOpen={isAddModalOpen}
-        onClose={closeModals}
-        setOpen={setAddModalOpen}
-        handleAddTask={handleAddTask}
+      {/* VIEW ONLY MODAL */}
+      <TaskDetailModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        setOpen={setModalOpen}
       />
-      {selectedProject && (
-        <EditModal
-          isOpen={isEditModalOpen}
-          onClose={closeModals}
-          setOpen={setEditModalOpen}
-          handleEditTask={handleEditTask}
-          currentTaskData={selectedProject}
-        />
-      )}
-
-      {/* ToastProvider should be at the root of the app */}
-      <ToastProvider />
     </div>
   );
 };

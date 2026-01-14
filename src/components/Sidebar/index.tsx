@@ -9,35 +9,54 @@ import {
 } from "react-ionicons";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import Cookies from "js-cookie";
+
+type NavLink = {
+  title: string;
+  icon: JSX.Element;
+  path: string;
+};
 
 const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string>("Employee");
 
-  const [userRole, setUserRole] = useState("");
-
-  // Check the user's role from localStorage
+  /**
+   * Ambil role dari cookies
+   * Contoh cookie:
+   * role_name=Project%20Lead
+   */
   useEffect(() => {
-    const userData = localStorage.getItem("user");
-    const user = userData ? JSON.parse(userData) : null;
-    setUserRole(user?.role_name || ""); // Get the role_name
+    const roleFromCookie = Cookies.get("role_name");
+
+    if (!roleFromCookie) {
+      setUserRole("Employee");
+      return;
+    }
+
+    // Decode: Project%20Lead -> Project Lead
+    setUserRole(decodeURIComponent(roleFromCookie));
   }, []);
 
-  // Handle user logout
   const handleLogout = () => {
-    localStorage.removeItem("user");
-    navigate("/login");
+    Cookies.remove("role_name");
+    Cookies.remove("token"); // kalau ada token
+    navigate("/login", { replace: true });
   };
 
-  // Admin-specific links
-  const adminLinks = [
+  /* =======================
+     NAVIGATION CONFIG
+  ======================== */
+
+  const adminLinks: NavLink[] = [
     {
       title: "Analytics",
       icon: <PieChartOutline color="#555" width="22px" height="22px" />,
       path: "/admin/analytics",
     },
     {
-      title: "Workflows",
+      title: "Workflow",
       icon: <PeopleOutline color="#555" width="22px" height="22px" />,
       path: "/admin/workflow",
     },
@@ -48,17 +67,16 @@ const Sidebar = () => {
     },
   ];
 
-  // Project Leader-specific links
-  const projectLeaderLinks = [
+  const projectLeadLinks: NavLink[] = [
     {
-      title: "Project Dashboard",
+      title: "Dashboard",
       icon: <GridOutline color="#555" width="22px" height="22px" />,
       path: "/project-leader/dashboard",
     },
     {
-      title: "Task Details",
+      title: "List Project",
       icon: <AppsOutline color="#555" width="22px" height="22px" />,
-      path: "/project-leader/task-detail",
+      path: "/project-leader/list-project",
     },
     {
       title: "User Tasks",
@@ -67,8 +85,7 @@ const Sidebar = () => {
     },
   ];
 
-  // User-specific links (general user)
-  const userLinks = [
+  const employeeLinks: NavLink[] = [
     {
       title: "Home",
       icon: <HomeOutline color="#555" width="22px" height="22px" />,
@@ -86,20 +103,25 @@ const Sidebar = () => {
     },
   ];
 
-  // Determine which links to show based on the user's role
-  let navLinks = [];
-  if (userRole === "Administrator") {
-    navLinks = adminLinks;
-  } else if (userRole === "Project Leader") {
-    navLinks = projectLeaderLinks;
-  } else {
-    navLinks = userLinks;
-  }
+  /* =======================
+     ROLE SWITCH
+  ======================== */
+
+  const navLinks: NavLink[] =
+    userRole === "Admin"
+      ? adminLinks
+      : userRole === "Project Lead"
+      ? projectLeadLinks
+      : employeeLinks;
+
+  /* =======================
+     RENDER
+  ======================== */
 
   return (
-    <div className="fixed left-0 top-0 md:w-[230px] w-[60px] overflow-hidden h-full flex flex-col z-10 transition-all duration-300 ease-in-out">
-      {/* Logo Section */}
-      <div className="w-full flex items-center md:justify-start justify-center md:pl-5 h-[70px] bg-white">
+    <div className="fixed left-0 top-0 md:w-[230px] w-[60px] h-full flex flex-col z-10">
+      {/* Logo */}
+      <div className="w-full h-[70px] bg-white flex items-center md:justify-start justify-center md:pl-5 border-b">
         <span className="text-orange-400 font-semibold text-2xl md:block hidden">
           Logo
         </span>
@@ -108,16 +130,17 @@ const Sidebar = () => {
         </span>
       </div>
 
-      {/* Navigation Links Section */}
-      <div className="w-full h-[calc(100vh-70px)] border-r flex flex-col md:items-start items-center gap-2 border-slate-300 bg-white py-5 md:px-3 px-3 relative">
+      {/* Menu */}
+      <div className="flex-1 bg-white border-r border-slate-300 py-5 px-3 flex flex-col gap-2 relative">
         {navLinks.map((link) => {
           const isActive = location.pathname === link.path;
+
           return (
-            <Link to={link.path} key={link.title} className="w-full">
+            <Link key={link.title} to={link.path} className="w-full">
               <div
-                className={`flex items-center gap-2 w-full rounded-lg hover:bg-orange-300 px-2 py-3 cursor-pointer transition-colors duration-300 ${
-                  isActive ? "bg-orange-300" : "bg-transparent"
-                }`}
+                className={`flex items-center gap-2 px-2 py-3 rounded-lg transition-colors
+                  ${isActive ? "bg-orange-300" : "hover:bg-orange-200"}
+                `}
               >
                 {link.icon}
                 <span className="font-medium text-[15px] md:block hidden">
@@ -128,10 +151,10 @@ const Sidebar = () => {
           );
         })}
 
-        {/* Logout Button */}
+        {/* Logout */}
         <div
-          className="flex absolute bottom-4 items-center md:justify-start justify-center gap-2 md:w-[90%] w-[70%] rounded-lg hover:bg-orange-300 px-2 py-3 cursor-pointer bg-gray-200 w-full"
           onClick={handleLogout}
+          className="absolute bottom-4 left-3 right-3 flex items-center gap-2 px-2 py-3 rounded-lg bg-gray-200 hover:bg-orange-300 cursor-pointer"
         >
           <LogOutOutline color="#555" width="22px" height="22px" />
           <span className="font-medium text-[15px] md:block hidden">
