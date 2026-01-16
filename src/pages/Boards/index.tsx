@@ -24,7 +24,6 @@ const Board = () => {
     setModalOpen,
     setSelectedColumn,
     setSelectedTask,
-
     deleteTask,
   } = useTasks();
 

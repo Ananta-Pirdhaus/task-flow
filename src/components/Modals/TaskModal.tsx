@@ -48,8 +48,17 @@ const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
 
   // Sync selectedTask when modalMode changes
   useEffect(() => {
-    if (modalMode === "edit" || modalMode === "view") {
-      setTaskData(selectedTask);
+    if ((modalMode === "edit" || modalMode === "view") && selectedTask) {
+      setTaskData({
+        ...selectedTask,
+        projectId: selectedTask.project?.id ?? null, // 🔥 INI KUNCI UTAMA
+        tags:
+          selectedTask.tags?.map((t: any) => ({
+            title: t.title,
+            bg: t.color,
+            text: "#000", // atau mapping warna teks sesuai logic kamu
+          })) || [],
+      });
     } else {
       setTaskData({
         title: "",
@@ -63,8 +72,10 @@ const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
         alt: "",
         progress: "0",
         tags: [],
+        projectId: null,
       });
     }
+
     setErrorMessage("");
     setTagTitle("");
   }, [modalMode, selectedTask]);
@@ -112,10 +123,10 @@ const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
       return;
     }
 
- if (!taskData.title || !taskData.endDate || !taskData.projectId) {
-   setErrorMessage("Title, End Date, dan Project wajib diisi.");
-   return;
- }
+    if (!taskData.title || !taskData.endDate || !taskData.projectId) {
+      setErrorMessage("Title, End Date, dan Project wajib diisi.");
+      return;
+    }
 
     setLoading(true);
 
