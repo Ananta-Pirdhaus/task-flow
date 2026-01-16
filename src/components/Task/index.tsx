@@ -1,5 +1,5 @@
 import { DraggableProvided } from "react-beautiful-dnd";
-import { TaskData, Tag } from "@/types/task"; // Sesuaikan path type Anda
+import { TaskData, Tag } from "@/types/task"; // Pastikan path ini sesuai
 import {
   Gauge,
   AlertCircle,
@@ -8,20 +8,23 @@ import {
   Pencil,
   Trash2,
   Tag as TagIcon,
+  // Import icon tambahan untuk Project
+  Folder,
+  ChevronRight,
 } from "lucide-react";
 import { useTasks } from "@/context/TaskContext";
 
 interface TaskProps {
   task: TaskData;
   provided: DraggableProvided;
-  // Kita tidak butuh onView/onEdit sebagai props lagi karena sudah dihandle Context
   onDelete?: (id: string | number) => void;
 }
 
+// Style untuk priority (sedikit disesuaikan agar lebih pop-up)
 const PRIORITY_CLASSES: Record<string, string> = {
-  low: "text-emerald-600 border-emerald-200 bg-emerald-50/60",
-  medium: "text-amber-600 border-amber-200 bg-amber-50/60",
-  high: "text-rose-600 border-rose-200 bg-rose-50/60",
+  low: "text-emerald-700 border-emerald-300 bg-emerald-100/80",
+  medium: "text-amber-700 border-amber-300 bg-amber-100/80",
+  high: "text-rose-700 border-rose-300 bg-rose-100/80",
 };
 
 const getProgressColorClass = (progress: number) => {
@@ -33,13 +36,22 @@ const getProgressColorClass = (progress: number) => {
 };
 
 const Task = ({ task, provided, onDelete }: TaskProps) => {
-  const { title, description, priority, endDate, endTime, progress, tags, id } =
-    task;
+  const {
+    title,
+    description,
+    priority,
+    endDate,
+    endTime,
+    progress,
+    tags,
+    id,
+    project, // Destructure project
+  } = task;
 
-  // Mengambil fungsi kontrol dari Context
   const { setModalOpen, setModalMode, setSelectedTask } = useTasks();
 
   /* ========================= LOGIC TANGGAL ========================= */
+  // (Logika tanggal tidak berubah dari sebelumnya)
   const endDateTime = endDate
     ? new Date(`${endDate}T${endTime || "23:59:59"}`)
     : null;
@@ -94,22 +106,22 @@ const Task = ({ task, provided, onDelete }: TaskProps) => {
       ref={provided.innerRef}
       {...provided.draggableProps}
       {...provided.dragHandleProps}
-      className="group relative w-full mb-4 flex flex-col gap-4 p-5 bg-white/40 backdrop-blur-xl rounded-[28px] border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] hover:bg-white/70 transition-all duration-300 cursor-grab active:cursor-grabbing overflow-hidden"
+      // Mengubah gap-4 menjadi gap-3 agar terlihat lebih rapi dengan struktur baru
+      className="group relative w-full mb-4 flex flex-col gap-3 p-5 bg-white/40 backdrop-blur-xl rounded-[28px] border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.1)] hover:bg-white/70 transition-all duration-300 cursor-grab active:cursor-grabbing overflow-hidden"
     >
-      {/* Header: Priority + Progress */}
+      {/* ================= SECTIONS HEADER BARU ================= */}
       <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          <div
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full border ${
-              PRIORITY_CLASSES[priority] || PRIORITY_CLASSES.low
-            }`}
-          >
-            <AlertCircle size={12} strokeWidth={3} />
-            <span className="text-[9px] font-black uppercase tracking-wider">
-              {priority}
+        {/* 1. PROJECT SECTION (PALING ATAS) */}
+        {project && (
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm transition-transform group-hover:scale-105 bg-white/50 border-white/30 text-indigo-600">
+            <Folder size={14} className="text-indigo-500/80" />
+            <span className="text-[11px] font-bold tracking-tight">
+              {project.name}
             </span>
+            {/* Icon panah kecil untuk kesan breadcrumb */}
+            <ChevronRight size={12} className="text-indigo-300" />
           </div>
-        </div>
+        )}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white border border-slate-100 text-indigo-600 shadow-sm transition-transform group-hover:scale-110">
           <Gauge size={14} strokeWidth={2.5} className="text-indigo-500" />
           <span className="text-[11px] font-black tracking-tighter">
@@ -118,8 +130,26 @@ const Task = ({ task, provided, onDelete }: TaskProps) => {
         </div>
       </div>
 
-      {/* Title & Description */}
-      <div className="space-y-1">
+      {/* 2. PRIORITY & PROGRESS SECTION (DIBAWAH PROJECT) */}
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2">
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm transition-transform group-hover:scale-105 ${
+              PRIORITY_CLASSES[priority] || PRIORITY_CLASSES.low
+            }`}
+          >
+            <AlertCircle size={12} strokeWidth={3} />
+            <span className="text-[9px] font-black uppercase tracking-wider">
+              {priority} Priority
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ================= END SECTIONS HEADER ================= */}
+
+      {/* Title & Description (Diberi sedikit margin atas) */}
+      <div className="space-y-1 mt-1">
         <h4 className="text-slate-900 font-extrabold text-[17px] tracking-tight leading-snug group-hover:text-indigo-700 transition-colors">
           {title}
         </h4>
@@ -128,21 +158,39 @@ const Task = ({ task, provided, onDelete }: TaskProps) => {
         </p>
       </div>
 
-      {/* Tags */}
-      <div className="flex flex-wrap gap-1.5">
-        {tags?.map((tag: Tag) => (
+      {/* ================= TAGS DENGAN LOGIKA TRUNCATE (SESUAI REQUEST) ================= */}
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {/* Hanya tampilkan 2 tag pertama menggunakan slice(0, 2) */}
+        {tags?.slice(0, 2).map((tag: Tag) => (
           <div
             key={tag.id}
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/80 border border-white/50 text-[10px] font-bold text-slate-500 shadow-sm"
+            // Style tag dipercantik agar menyesuaikan warna tagnya secara dinamis namun tetap lembut
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[10px] font-bold shadow-sm transition-all hover:scale-105"
+            style={{
+              backgroundColor: tag.color ? `${tag.color}15` : "#f8fafc", // 15% opacity hex
+              borderColor: tag.color ? `${tag.color}40` : "#e2e8f0", // 40% opacity hex
+              color: tag.color || "#475569",
+            }}
           >
-            <TagIcon size={10} className="text-indigo-400" />
+            <TagIcon size={10} className="opacity-70" />
             {tag.title}
           </div>
         ))}
+
+        {/* Jika jumlah tag lebih dari 2, tampilkan indikator "..." */}
+        {tags && tags.length > 2 && (
+          <div
+            className="px-2 py-1 rounded-lg bg-slate-100 border border-slate-200 text-slate-400 text-[10px] font-black tracking-widest shadow-sm cursor-help"
+            title={`${tags.length - 2} more tags`}
+          >
+            ...
+          </div>
+        )}
       </div>
+      {/* ================= END TAGS LOGIC ================= */}
 
       {/* Progress Bar */}
-      <div className="relative w-full h-2 bg-slate-200/40 rounded-full overflow-hidden">
+      <div className="relative w-full h-2 bg-slate-200/40 rounded-full overflow-hidden mt-1">
         <div
           className={`h-full bg-gradient-to-r rounded-full transition-all duration-700 shadow-lg ${getProgressColorClass(
             progress
@@ -156,7 +204,7 @@ const Task = ({ task, provided, onDelete }: TaskProps) => {
         <div
           className={`flex items-center gap-2 px-3 py-2 rounded-xl border shadow-sm transition-all duration-300 ${dateContainerClass}`}
         >
-          <CalendarDays size={14} className="text-slate-500" />
+          <CalendarDays size={14} />
           <span className="text-[10px] uppercase font-black tracking-tight">
             {dateText}
           </span>

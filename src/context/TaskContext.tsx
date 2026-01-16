@@ -1,3 +1,4 @@
+
 import {
   createContext,
   useContext,
@@ -46,6 +47,7 @@ const defaultColumns: Columns = {
 
 export const TaskProvider = ({ children }: { children: ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
+
   const [columns, setColumns] = useState<Columns>(defaultColumns);
   const [loading, setLoading] = useState(false);
 
@@ -56,30 +58,24 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     useState<keyof Columns>("backlog");
   const [selectedTask, setSelectedTask] = useState<TaskData | null>(null);
 
-  // Ambil dari cookies
-  const role = Cookies.get("role_name");
-  const userId = Cookies.get("user_id");
+  /* ========================= ROLE ========================= */
+  const rawRole = Cookies.get("role_name");
+  const role = rawRole ? decodeURIComponent(rawRole) : "";
+  const userId = user?.id || Cookies.get("user_id");
 
-  useEffect(() => {
-    if (authLoading) return;
-
-    const userId = user?.id || Cookies.get("user_id");
-    if (!userId) return;
-
-    fetchTasks(userId);
-  }, [authLoading, user?.id]);
+  // 🔑 Employee & Project Lead tetap user-based
+  const isUserScoped = role === "Employee" || role === "Project Lead";
 
   /* ========================= FETCH ========================= */
-  const fetchTasks = async (userId?: string | number) => {
-    if (role === "Employee" && !userId) return;
+  const fetchTasks = async () => {
+    if (isUserScoped && !userId) return;
 
     try {
       setLoading(true);
 
-      const endpoint = role === "Employee" ? `/tasks/user/${userId}` : `/tasks`;
+      const endpoint = isUserScoped ? `/tasks/user/${userId}` : `/tasks`;
 
       const res = await axiosInstance.get(endpoint);
-
       const tasks: TaskData[] = Array.isArray(res.data) ? res.data : [];
 
       const structured: Columns = {
@@ -111,13 +107,13 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   /* ========================= ADD ========================= */
   const addTask = async (payload: any) => {
     try {
-      const endpoint = role === "Employee" ? `/tasks/user/${userId}` : `/tasks`;
+      const endpoint = isUserScoped ? `/tasks/user/${userId}` : `/tasks`;
 
       const { data } = await axiosInstance.post(endpoint, payload);
 
       const task: TaskData = {
         ...data,
-        task_type: data.task_type || selectedColumn,
+        taskType: data.taskType || selectedColumn,
       };
 
       setColumns((prev) => ({
@@ -137,10 +133,9 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   /* ========================= EDIT ========================= */
   const editTask = async (updated: any) => {
     try {
-      const endpoint =
-        role === "Employee"
-          ? `/tasks/${updated.id}/user/${userId}`
-          : `/tasks/${updated.id}`;
+      const endpoint = isUserScoped
+        ? `/tasks/${updated.id}/user/${userId}`
+        : `/tasks/${updated.id}`;
 
       const { data } = await axiosInstance.put(endpoint, updated);
 
@@ -163,10 +158,9 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   /* ========================= DELETE ========================= */
   const deleteTask = async (taskId: string | number) => {
     try {
-      const endpoint =
-        role === "Employee"
-          ? `/tasks/${taskId}/user/${userId}`
-          : `/tasks/${taskId}`;
+      const endpoint = isUserScoped
+        ? `/tasks/${taskId}/user/${userId}`
+        : `/tasks/${taskId}`;
 
       await axiosInstance.delete(endpoint);
 
@@ -187,10 +181,8 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
   /* ========================= DRAG ========================= */
   const onDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
-
     if (!destination) return;
 
-    // Jika drop di posisi yang sama → abaikan
     if (
       destination.droppableId === source.droppableId &&
       destination.index === source.index
@@ -198,28 +190,28 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // 1. Update UI dulu (optimistic)
+    // optimistic UI
     dragLogic(result, columns, setColumns);
 
-    // 2. Jika pindah column → update ke backend
     if (destination.droppableId !== source.droppableId) {
       const sourceCol = source.droppableId as keyof Columns;
       const task = columns[sourceCol].items.find(
         (t) => t.id.toString() === draggableId
       );
-
       if (!task) return;
 
       editTask({
         ...task,
-        taskType: destination.droppableId, // 🔥 INI KUNCINYA
+        taskType: destination.droppableId,
       });
     }
   };
 
+  /* ========================= INIT ========================= */
   useEffect(() => {
+    if (authLoading) return;
     fetchTasks();
-  }, []);
+  }, [authLoading, role, userId]);
 
   return (
     <TaskContext.Provider

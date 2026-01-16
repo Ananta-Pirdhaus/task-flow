@@ -6,13 +6,26 @@ import type { Project } from "@/types/project";
 import { Plus, Pencil, Trash2, Folder } from "lucide-react";
 
 const ProjectList: React.FC = () => {
-  const { projects, loading, createProject, updateProject, deleteProject } =
-    useProjects();
+  const {
+    projects,
+    loading,
+    fetchProjects, // ⬅️ PENTING
+    createProject,
+    updateProject,
+    deleteProject,
+  } = useProjects();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedData, setSelectedData] = useState<Project | null>(null);
 
-  // Debug data dari context
+  /* =================== FETCH SAAT PERTAMA RENDER =================== */
+  useEffect(() => {
+    if (projects.length === 0) {
+      fetchProjects();
+    }
+  }, [fetchProjects, projects.length]);
+
+  /* =================== DEBUG =================== */
   useEffect(() => {
     console.log("📦 Data projects dari context:", projects);
   }, [projects]);
@@ -36,6 +49,7 @@ const ProjectList: React.FC = () => {
     setIsModalOpen(false);
   };
 
+  /* =================== LOADING STATE =================== */
   if (loading && projects.length === 0) {
     return (
       <div className="flex justify-center p-10 font-medium">
@@ -103,13 +117,6 @@ const ProjectList: React.FC = () => {
               <h2 className="font-bold text-gray-800 truncate">
                 {project.name}
               </h2>
-
-              <Link
-                to={`/projects/${project.id}`}
-                className="text-sm text-blue-500 mt-3 inline-block"
-              >
-                Lihat detail →
-              </Link>
             </div>
           ))}
         </div>

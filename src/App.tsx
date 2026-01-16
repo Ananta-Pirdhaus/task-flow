@@ -2,19 +2,15 @@ import { useRoutes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-import routes from "./routes"; // ini sudah array
-import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { TaskProvider } from "./context/TaskContext";
-import { ProjectProvider } from "./context/ProjectContext";
+import routes from "./routes";
+import { useAuth } from "@/context/AuthContext";
+import AppProviders from "@/context/AppProviders";
 
 function AppContent() {
   const { loading } = useAuth();
 
-  if (loading) {
-    return null; // atau <LoadingSpinner />
-  }
+  if (loading) return null;
 
-  // Tidak perlu panggil routes() karena sudah array
   const routing = useRoutes(routes);
 
   return (
@@ -27,12 +23,8 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <TaskProvider>
-        <ProjectProvider>
-          <AppContent />
-        </ProjectProvider>
-      </TaskProvider>
-    </AuthProvider>
+    <AppProviders>
+      <AppContent />
+    </AppProviders>
   );
 }

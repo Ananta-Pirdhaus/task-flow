@@ -79,6 +79,11 @@ const Sidebar = () => {
       path: "/project-leader/list-project",
     },
     {
+      title: "Lead Boards",
+      icon: <AppsOutline color="#555" width="22px" height="22px" />,
+      path: "/project-leader/boards",
+    },
+    {
       title: "User Tasks",
       icon: <PeopleOutline color="#555" width="22px" height="22px" />,
       path: "/project-leader/user-task",

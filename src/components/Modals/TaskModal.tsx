@@ -13,6 +13,7 @@ import { getRandomColors } from "../../helpers/getRandomColors";
 import { useTasks } from "../../context/TaskContext";
 import { TaskData } from "../../types/task";
 import Cookies from "js-cookie";
+import { useProjects } from "@/context/ProjectContext";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ interface TaskModalProps {
 const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
   const { modalMode, selectedColumn, selectedTask, addTask, editTask } =
     useTasks();
-
+  const { projects, loading: projectLoading } = useProjects();
   const [loading, setLoading] = useState(false);
   const [taskData, setTaskData] = useState<any>({
     title: "",
@@ -39,7 +40,9 @@ const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
     alt: "",
     progress: "0",
     tags: [],
+    projectId: null, // <-- baru
   });
+
   const [tagTitle, setTagTitle] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -109,10 +112,10 @@ const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
       return;
     }
 
-    if (!taskData.title || !taskData.endDate) {
-      setErrorMessage("Title and End Date are required.");
-      return;
-    }
+ if (!taskData.title || !taskData.endDate || !taskData.projectId) {
+   setErrorMessage("Title, End Date, dan Project wajib diisi.");
+   return;
+ }
 
     setLoading(true);
 
@@ -121,6 +124,7 @@ const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
       user_id: userId,
       taskType: selectedColumn || "backlog",
       tags: taskData.tags.map((t: any) => ({ title: t.title, color: t.bg })),
+      projectId: taskData.projectId,
     };
 
     try {
@@ -180,6 +184,37 @@ const TaskModal = ({ isOpen, onClose, setOpen }: TaskModalProps) => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             {/* Left: Task Details */}
             <div className="lg:col-span-7 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">
+                  Project
+                </label>
+                <select
+                  value={taskData.projectId || ""}
+                  onChange={(e) =>
+                    setTaskData({
+                      ...taskData,
+                      projectId: Number(e.target.value),
+                    })
+                  }
+                  disabled={isViewMode || projectLoading}
+                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 focus:border-orange-500 outline-none transition-all font-semibold text-slate-700 bg-white"
+                >
+                  <option value="">-- Select Project --</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {isViewMode && taskData.projectId && (
+                <p className="text-sm text-slate-600 mt-1">
+                  Project:{" "}
+                  {projects.find((p) => p.id === taskData.projectId)?.name}
+                </p>
+              )}
+
               <div className="space-y-2">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Layout size={14} className="text-orange-500" /> Task Title

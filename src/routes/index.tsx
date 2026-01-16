@@ -35,6 +35,7 @@ const routes: RouteObject[] = [
       { path: "dashboard", element: <ProjectLeaderDashboard /> },
       { path: "list-project", element: <TaskDetails /> },
       { path: "user-task", element: <UserTaskPage /> },
+      { path: "boards", element: <Boards /> },
     ],
   },
 

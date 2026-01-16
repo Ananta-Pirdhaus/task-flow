@@ -4,12 +4,20 @@ export type Tag = {
   color: string;
 };
 
+export type Project = {
+  id: string;
+  name: string;
+  createdAt: string;
+};
+
+
+
 export type TaskT = {
   id: string;
   title: string;
   description: string;
   priority: "high" | "medium" | "low";
-
+  project: Project | null;
   taskType: "backlog" | "inprogress" | "done"; // camelCase
 
   startDate: string;
